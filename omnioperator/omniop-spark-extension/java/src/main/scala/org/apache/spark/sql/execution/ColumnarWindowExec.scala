@@ -17,65 +17,68 @@
 
 package org.apache.spark.sql.execution
 
-import java.util.concurrent.TimeUnit. NANOSECONDS
-import com.huawei.boostkit.spark.Constant. (IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP)
-import com.huawei.boostkit.spark.expression. OmniExpressionAdaptor.
-import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmnivecs
-import nova.hetu.omniruntime. 'type'. DataType
-import nova.hetu.omniruntime. constants. FunctionType
-import nova.hetu. omniruntime.operator.config.OperatorConfig
-import nova.hetu.omniruntime.operator.window. OmniwindowwithExproperatorFactory
-import nova. hetu.omniruntime.vector. VecBatch
-import org. apache.spark.rdd. RDD
-import org.apache.spark.sql.catalyst. InternalRow
-import org.apache.spark.sql.catalyst.expressions.
-import org.apache.spark.sql.catalyst.expressions.aggregate. (AggregateExpression, Average, Count, Max,
-Min, Sum]
-import org.apache.spark.sql.catalyst.plans.physical. (AllTuples, ClusteredDistribution, Distribution,
-Partitioning)
+import java.util.concurrent.TimeUnit.NANOSECONDS
+import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
+import com.huawei.boostkit.spark.expression. OmniExpressionAdaptor._
+import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
+import nova.hetu.omniruntime.'type'.DataType
+import nova.hetu.omniruntime. constants.FunctionType
+import nova.hetu.omniruntime.operator.config.OperatorConfig
+import nova.hetu.omniruntime.operator.window.OmniWindowWithExprOperatorFactory
+import nova.hetu.omniruntime.vector.VecBatch
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Max, Min, Sum}
+import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.ColumnarProjection.dealPartitionData
-import org.apache.spark.sql.execution.metric.SOLMetrics
-import org.apache. spark.sql.execution.util.SparkMemoryUtils
-import org.apache.spark.sql.execution.vectorized. OmnicolumnVector
-import org.apache.spark.sql.execution.window. (WindowExec, windowExecBase)
-import org.apache.spark.sql.types. (DecimalType, StructType)
+import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.util.SparkMemoryUtils
+import org.apache.spark.sql.execution.vectorized.OmnicolumnVector
+import org.apache.spark.sql.execution.window.{WindowExec, WindowExecBase}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
-case class ColumnarWindowExec (windowExpression: Seq[NamedExpression],
-                               partitionSpec: Seq[Expression],
-                               orderSpec: Seq[Sortorder], child: SparkPlan)
-  extends windowExecBase
-override def nodeName: String = "OmniColumnarwindow"
+
+case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
+                              partitionSpec: Seq[Expression],
+                              orderSpec: Seq[SortOrder], child: SparkPlan)
+  extends WindowExecBase {
+
+  override def nodeName: String = "OmniColumnarWindow"
   override def supportsColumnar: Boolean = true
   override lazy val metrics = Map(
-  "addInputTime" -> SOLMetrics.createTimingMetric(sparkContext, name= "time in omni addInput"),
-  "numInputVecBatchs" -> SOLMetrics.createMetric(sparkContext, name= "number of input vecBatchs"),
-  "numInputRows" -> SOLMetrics.createMetric(sparkContext, name = "number of input rows"),
-  "omni CodegenTime" -> SOLMetrics.createTimingMetric (sparkContext, name= "time in omni codegen"),
-  "getOutputTime" -> SOLMetrics.createTimingMetric(sparkContext, name = "time in omni getoutput"),
-  "numoutputRows" -> SOLMetrics.createMetric(sparkContext, name= "number of output rows"),
-  "numOutputVecBatchs" -> SOLMetrics.createMetric (sparkContext, name = "number of output vecBatchs"))
-  override def output: Seg [Attribute] =
-  child.output ++ windowExpression.map (_.toAttribute)
-  override def requiredChildnistribution: Seq[Distribution] =1
-  if (partitionSpec.isEmpty) 1
-  11 Only show warning when the number of bytes is larger than 100 MiB?
-  logWarning ( msg= "No Partition Defined for Window operation! Moving all data to a single "
-  + "partition, this can cause serious performance degradation.")
-  AllTuples :: Nil
-  ) else ClusteredDistribution (partitionSpec) :: Nil
-  override def requiredchildordering: Seq[Seq[Sortorder]] =
-  Seg (partitionSpec.map (Sortorder(_, Ascending) ) ++ orderSpec)
-  override def putputordering: Seq[Sortorder] = child.outputordering
+  "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
+  "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
+  "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+  "omniCodegenTime" -> SQLMetrics.createTimingMetric (sparkContext, "time in omni codegen"),
+  "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
+  "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+  "numOutputVecBatchs" -> SQLMetrics.createMetric (sparkContext, "number of output vecBatchs"))
+
+  override def output: Seq[Attribute] =
+    child.output ++ windowExpression.map (_.toAttribute)
+
+  override def requiredChildDistribution: Seq[Distribution] = {
+    if (partitionSpec.isEmpty) {
+      // Only show warning when the number of bytes is larger than 100 MiB?
+      logWarning("No Partition Defined for Window operation! Moving all data to a single "
+        + "partition, this can cause serious performance degradation.")
+      AllTuples :: Nil
+    } else ClusteredDistribution(partitionSpec) :: Nil
+  }
+
+  override def requiredchildOrdering: Seq[Seq[SortOrder]] =
+    Seq(partitionSpec.map (SortOrder(_, Ascending) ) ++ orderSpec)
+
+  override def outputordering: Seq[SortOrder] = child.outputOrdering
+
   override def outputPartitioning: Partitioning = child.outputPartitioning
-  override protected def doexecute (): RDD [InternalRow] = 1
-  throw new UnsupportedOperationException (s"This operator doesn't support doExecute () .")
-  def checkAggFunInOutDatatype (funcInDataType: org.apache. spark. sql.types. DataType, funcoutDataType: org.apache.spark.sql.types.DataType): Unit =[ throw new UnsupportedoperationException (s"This operator doesn't support doexet 02 A 20 47 X27 def checkAggFunTnoutDataType (funcInDatatype: org.apache. spark.sql.types.Datatype, funcoutDatatype: org.apache. spark.sql. types.DataType): Unit = 1
-  1/for decimal, only support decimal64 to decimal128 output
-  if (funcInDataType.isInstanceOf [DecimalType] && funcoutDataType.isInstanceof [DecimalTypel)-
-  if (!DecimalType.is64BitDecimalType (funcoutDataType.asInstanceOf [Decima1Type]))
-  throw new UnsupportedoperationException (s"output only support decimal128 type,
-  inDataType:S ( funcInDataType) outDataType: S ( funcoutDataType)")
-def buildcheck (): Unit = 1
+
+  override protected def doexecute(): RDD [InternalRow] = {
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute () .")
+  }
+
+  def buildCheck(): Unit = {
   val inputColsize = child.outputSet.size
   val sourcetypes = new Array [DataTypel (inputColsize)
   val windowFuntype = new Array [FunctionType] (windowExpression.size)
@@ -137,6 +140,7 @@ case_=>
   if (!DecimalType.is64BitDecimalType (funcoutDataType.asInstanceOf [DecimalType]))
   throw new UnsupportedoperationException (s"output only support decimal128 type,
   inDataType:S (funcInDataType) outDataType: S (funcoutDataType)" )
+
 def buildcheck (): Unit = (
   val inputColsize = child. outputSet.size
   val sourcetypes = new Array [DataType] (inputColsize)
@@ -199,82 +203,95 @@ case_=>
   exp => rewriteToOmniJsonExpressionLiteral (exp, getExprIdMap (finalout))).toArray
   checkOmniJsonWhiteList ( filterExpr = "", projectExpressions)
   checkOmniJsonWhiteList ( filterExpr = "", windowArgKeys)
-  override def doExecuteColumnar () : RDD [ColumnarBatch] = (
-  val addInputTime = longMetric( name = "addInputTime")
-  val numInputRows = longMetric ( name = "numInputRows")
-  val numInputvecBatchs = longMetric( name = "numInputVecBatchs")
-  val omnicodegentime = longMetric ( name = "omniCodegentime")
-  val numoutputRows = longMetric ( name = "numOutputRows")
-  val numOutputvecBatchs = longMetric ( name = "numOutputvecBatchs")
-  val getoutputTime = longMetric ( name = "getoutputTime")
-  val inputColsize = child.outputSet.size
-  val sourceTypes = new Array[DataType] (inputColsize)
-  val sortCols = new Array [Int] (orderSpec.size)
-  val ascendings = new Array [Int] (orderSpec.size)
-  val nullFirsts = new Array [Int] (orderSpec.size)
-  val windowFuntype = new Array [Functiontype] (windowExpression.size)
-  val omminPartitionChannels = new Array [Int] (partitionspec.size)
-  val preGroupedChannels = new Array [Int] (0)
-  var windowArgKeys = new Array [String] (0)
-  var windowArgKeysForSkip = new Array [String] (0)
-  val windowFunRetType = new Array [DataType] (windowExpression.size)
-  val omniAttrExpsIdMap = getExprIdMap (child.output)
-  var attrMap: Map [string, Int] = Map()
-  val inputIter = child.outputSet.toIterator
-  var i = 0
-  while (inputIter. hasNext) (
-  val inputattr = inputiter.next ()
-  sourceTypes (i) = sparkTypeToOmniType (inputattr.dataType, inputattr.metadata)
-  attrMap += (inputAttr.name -> i)
-  i += 1
-  1/ partition column parameters
-  // sort column parameters
-  i=o
-  for (sortAttr <- orderSpec)
-  if (attrMap.contains (sortattr.child.asInstanceOf [AttributeReference]. name)) (
-  sortCols (i) = attrMap (sortAttr.child.asInstanceof [AttributeReference].name)
-  ascendings (i) = sortAttr.isAscending matchi
-  case true => 1
-  case_=>o
-  nullFirsts (i) = sortAttr.nullordering.sql match 1
-  case "NULLS LAST" =>o
-  case_=> 1
-  ) else
-  throw new UnsupportedoperationException (s"Unsupported sort col not in inputset: S(sortAttr
-  .nodeName ) ")
-i+=1
+
+
+  override def doExecuteColumnar () : RDD [ColumnarBatch] = {
+    val addInputTime = longMetric("addInputTime")
+    val numInputRows = longMetric("numInputRows")
+    val numInputVecBatchs = longMetric("numInputVecBatchs")
+    val omniCodegenTime = longMetric("omniCodegentime")
+    val numOutputRows = longMetric("numOutputRows")
+    val numOutputVecBatchs = longMetric("numOutputvecBatchs")
+    val getOutputTime = longMetric("getoutputTime")
+
+    val inputColsize = child.outputSet.size
+    val sourceTypes = new Array[DataType] (inputColsize) // 2,2
+    val sortCols = new Array[Int] (orderSpec.size) // 0,1
+    val ascendings = new Array[Int] (orderSpec.size) // 1
+    val nullFirsts = new Array[Int] (orderSpec.size) // 0, 0
+
+    val windowFuntype = new Array[Functiontype] (windowExpression.size)
+    val omminPartitionChannels = new Array[Int] (partitionspec.size)
+    val preGroupedChannels = new Array[Int] (0) // ?
+    var windowArgKeys = new Array[String] (0) // ?
+    var windowArgKeysForSkip = new Array[String] (0) // ?
+    val windowFunRetType = new Array[DataType] (windowExpression.size) // ?
+    val omniAttrExpsIdMap = getExprIdMap(child.output)
+
+    var attrMap: Map[string, Int] = Map()
+    val inputIter = child.outputSet.toIterator
+    var i = 0
+    while (inputIter. hasNext) {
+      val inputAttr = inputIter.next()
+      sourceTypes(i) = sparkTypeToOmniType(inputAttr.dataType, inputAttr.metadata)
+      attrMap += (inputAttr.name -> i)
+      i += 1
+    }
+    // partition column parameters
+
+    // sort column parameters
+    i = 0
+    for (sortAttr <- orderSpec) {
+      if (attrMap.contains(sortAttr.child.asInstanceOf[AttributeReference].name)) {
+        sortCols(i) = attrMap(sortAttr.child.asInstanceOf[AttributeReference].name)
+        ascendings(i) = sortAttr.isAscending match {
+          case true => 1
+          case _ => 0
+        }
+        nullFirsts(i) = sortAttr.nullOrdering.sql match {
+          case "NULLS LAST" => 0
+          case _ => 1
+        }
+      } else {
+        throw new RuntimeException(s"Unsupported sort col not in inputset: ${sortAttr.nodeName}")
+      }
+      i += 1
+    }
+
+    i=0
+    // only window column no need to as output
+    val outputCols = new Array[Int](child.output.size) //0, 1
+    for (outputAttr <- child.output) {
+      if (attrMap.contains(outputAttr.name)) {
+        outputCols(i) = attrMap.get(outputAttr.name).get
+      } else {
+        throw new RuntimeException(s"output col not in input cols:  ${outputAttr.name} ")
+      }
+      i += 1
+    }
+
+    // partitionSpec: Seg(Expression]
+    i=0
+    for (partitionAttr <- partitionSpec) {
+      if (attrMap.contains(partitionAttr.asInstanceOf[AttributeReference].name)) {
+         omminPartitionChannels(i) = attrMap(partitionAttr.asInstanceOf[AttributeReference].name)
+      } else {
+         throw new RuntimeException(s"output col not in input cols:  ${partitionAttr}")
+      }
+      i +=1
+    }
+
+  var windowExpressionWithProject = false
   i=0
-  1/ only window column no need to as output
-  val outputcols = new Array [Int] (child.output.size) //0, 1
-  for (outputAttr <- child.output) (
-  if (attrMap.contains (outputattr.name))
-  outputcols (i) = attrMap.get (outputAttr.name).get
-  ) else
-  throw new UnsupportedoperationException (s"output col not in input cols: S(outputAttr. name] ")
-  i+=1
-  1/ partitionSpec: Seg(Expression]
-  i=0
-  for (partitionattr <- partitionSpec)
-  if (attrMap.contains (partitionAttr.asInstanceOf [AttributeReference] .name))
-  omminPartitionchannels (i) = attrMap (partitionAttr.asInstanceof [AttributeReference] .name) i=0
-  for (partitionattr <- partitionspec)
-  if (attrMap.contains (partitionattr.asInstanceOf [AttributeReference] .name))i
-  omminPartitionChannels (i) = attrMap (partitionattr.asinstanceOf [AttributeReference] .name)
-  ) else (
-  throw new UnsupportedoperationException (s"output col not in input cols: S(partitionattr)")
-  02 Α 20 Α7ΚΙΑ
-  +=-1
-  var windowExpressionwithProject = false
-  i=0
-  windowExpression. foreach ( x =>
-  x.foreach
-  case e@windowExpression (function, spec) =>
-  windowFunRetType (0) = sparkTypeToomniType (function.dataType)
-  function match
-  //-AggregatewindowFunction
-  case winfunc: windowFunction =>
+  windowExpression.foreach { x =>
+    x.foreach {
+      case e@windowExpression(function, spec) =>
+         windowFunRetType (0) = sparkTypeToOmniType(function.dataType)
+         function match {
+  // AggregatewindowFunction
+  case winfunc: WindowFunction =>
   windowFunType (0) = toomniWindowFunType(winfunc)
-  windowArgkeys = winfunc.children.map (
+  windowArgKeys = winfunc.children.map (
   exp => rewriteToOmniJsonExpressionLiteral (exp, omniattrExpsIdMap)).toArray
   windowArgKeysForskip = winfunc.children.map(
   exp => rewriteToOmniExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
@@ -327,6 +344,7 @@ throw new UnsupportedoperationException (s"Unsupported specified frame_end: S(wi
   var hasNext = results.hasNext
   getoutputTime += NANOSECONDS. toMillis (System. nanoTime () - startGetOp)
   hasNext.
+
   override def next (): ColumnarBatch = [
   val startGetop = System. nanoTime ()
   val vecBatch = results.next ()

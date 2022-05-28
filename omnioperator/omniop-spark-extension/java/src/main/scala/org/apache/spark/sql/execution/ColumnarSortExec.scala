@@ -37,10 +37,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 case class ColumnarSortExec(
-     sortOrder: Seq[SortOrder],
-     global: Boolean,
-     child: SparkPlan,
-     testSpillFrequency: Int = 0)
+    sortOrder: Seq[SortOrder],
+    global: Boolean,
+    child: SparkPlan,
+    testSpillFrequency: Int = 0)
   extends UnaryExecNode {
 
   private val MAX_DIR_CREATION_ATTEMPTS: Int = 10
@@ -51,23 +51,23 @@ case class ColumnarSortExec(
 
   override def output: Seq[Attribute] = child.output
 
-  override def outputOrdering: Seq[Sortorder] = sortOrder
+  override def outputOrdering: Seq[SortOrder] = sortOrder
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def requiredChildDistribution: Seq[Distribution] =
-      if (global) OrderedDistribution (sortOrder):: Nil else UnspecifiedDistribution:: Nil
+    if (global) OrderedDistribution (sortOrder):: Nil else UnspecifiedDistribution:: Nil
 
-  override lazy val metrics = Map (
+  override lazy val metrics = Map(
 
-  "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
-  "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
-  "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-  "omniCodegenTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni codegen"),
-  "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getoutput"),
-  "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-  "outputDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "output data size"),
-  "numOutputVecBatchs" -> SQLMetrics.createMetric (sparkContext, "number of output vecBatchs"))
+    "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
+    "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
+    "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+    "omniCodegenTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni codegen"),
+    "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+    "outputDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "output data size"),
+    "numOutputVecBatchs" -> SQLMetrics.createMetric (sparkContext, "number of output vecBatchs"))
 
   def buildCheck(): Unit = {
     genSortParam(child.output, sortOrder)
@@ -77,7 +77,7 @@ case class ColumnarSortExec(
 
   private def generateLocalDirs(conf: SparkConf): Array[File] = {
     Utils.getConfiguredLocalDirs(conf).flatMap { rootDir =>
-      val localDir = generateDirs(rootDir,  "columnarSortSpill")
+      val localDir = generateDirs(rootDir, "columnarSortSpill")
       Some(localDir)
     }
   }
@@ -92,9 +92,9 @@ case class ColumnarSortExec(
         throw new IOException("Directory conflict: failed to generate a temp directory for columnarSortSpill " +
           "(under " + root + ") after " + maxAttempts + " attempts!")
       }
-      dir= new File(root, namePrefix + "-" + UUID. randomUUID.toString)
+      dir = new File(root, namePrefix + "-" + UUID.randomUUID.toString)
       if (dir.exists()) {
-      dir= null
+        dir= null
       }
     }
 
@@ -104,13 +104,12 @@ case class ColumnarSortExec(
   def getFile(sparkEnv: SparkEnv): File = {
     val hash = Utils.nonNegativeHash(sparkEnv.executorId)
     val dirId = hash % sortlocalDirs.length
-      sortlocalDirs(dirId)
-    }
+    sortlocalDirs(dirId)
+  }
 
   val spillPathDir = getFile(SparkEnv.get).getCanonicalPath
 
-
-  override def doExecuteColumnar(): RDD [ColumnarBatch] = {
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val omniCodegenTime = longMetric("omniCodegenTime")
 
     val (sourceTypes, ascendings, nullFirsts, sortColsExp) = genSortParam(child.output, sortOrder)
@@ -125,22 +124,21 @@ case class ColumnarSortExec(
       val sparkSpillConf = new SparkSpillConfig(sortSpillEnable, spillPathDir,
         sortSpillDirDiskReserveSize, sortSpillRowThreshold)
       val startCodegen = System.nanoTime()
-      val sortOperatorFactory = new OmniSortWithExprOperatorFactory(sourcetypes, outputcols,
-        sortColsExp, ascendings, nullFirsts, new OperatorConfig(IS_ENABLE_JIT, sparkSpillconf.IS_SKIP_VERIFY_EXP))
+      val sortOperatorFactory = new OmniSortWithExprOperatorFactory(sourceTypes, outputCols,
+        sortColsExp, ascendings, nullFirsts, new OperatorConfig(IS_ENABLE_JIT, sparkSpillconf, IS_SKIP_VERIFY_EXP))
       val sortOperator = sortOperatorFactory.createOperator
-      omniCodegenTime += NANOSECONDS.toMillis(System.nanoTime() - startcodegen)
+      omniCodegenTime += NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
         sortOperator.close()
       })
-
       addAllAndGetIterator(sortOperator, iter, this.schema,
         longMetric("addInputTime"), longMetric("numInputVecBatchs"), longMetric("numInputRows"),
-        longMetric("getOutputTime"), longMetric("numOutputvecBatchs"), longMetric("numOutputRows"),
-        longMetric("outputDatasize"))
+        longMetric("getOutputTime"), longMetric("numOutputVecBatchs"), longMetric("numOutputRows"),
+        longMetric("outputDataSize"))
     }
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
-      throw new UnsupportedOperationException (s"This operator doesn't support doExecute ().")
+    throw new UnsupportedOperationException (s"This operator doesn't support doExecute ().")
   }
 }

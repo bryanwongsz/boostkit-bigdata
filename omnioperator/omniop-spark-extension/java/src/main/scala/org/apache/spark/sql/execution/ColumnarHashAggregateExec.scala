@@ -16,6 +16,7 @@
  */
 
 package org.apache.spark.sql.execution
+
 import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.omniExpressionAdaptor._
@@ -54,7 +55,6 @@ case class ColumnarHashAggregateExec(
   extends BaseAggregateExec
     with AliasAwareoutputPartitioning{
 
-    }
   override lazy val metrics = Map(
     "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
     "numInputRows" -> SQLMetrics.createMetzic(sparkContext, "number of input rows"),

@@ -56,7 +56,7 @@ case class ColumnarSortExec(
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def requiredChildDistribution: Seq[Distribution] =
-    if (global) OrderedDistribution (sortOrder):: Nil else UnspecifiedDistribution:: Nil
+    if (global) OrderedDistribution(sortOrder):: Nil else UnspecifiedDistribution:: Nil
 
   override lazy val metrics = Map(
 
@@ -67,7 +67,7 @@ case class ColumnarSortExec(
     "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "outputDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "output data size"),
-    "numOutputVecBatchs" -> SQLMetrics.createMetric (sparkContext, "number of output vecBatchs"))
+    "numOutputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"))
 
   def buildCheck(): Unit = {
     genSortParam(child.output, sortOrder)
@@ -94,7 +94,7 @@ case class ColumnarSortExec(
       }
       dir = new File(root, namePrefix + "-" + UUID.randomUUID.toString)
       if (dir.exists()) {
-        dir= null
+        dir = null
       }
     }
 
@@ -125,7 +125,7 @@ case class ColumnarSortExec(
         sortSpillDirDiskReserveSize, sortSpillRowThreshold)
       val startCodegen = System.nanoTime()
       val sortOperatorFactory = new OmniSortWithExprOperatorFactory(sourceTypes, outputCols,
-        sortColsExp, ascendings, nullFirsts, new OperatorConfig(IS_ENABLE_JIT, sparkSpillconf, IS_SKIP_VERIFY_EXP))
+        sortColsExp, ascendings, nullFirsts, new OperatorConfig(IS_ENABLE_JIT, sparkSpillConf, IS_SKIP_VERIFY_EXP))
       val sortOperator = sortOperatorFactory.createOperator
       omniCodegenTime += NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
@@ -139,6 +139,6 @@ case class ColumnarSortExec(
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException (s"This operator doesn't support doExecute ().")
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute ().")
   }
 }

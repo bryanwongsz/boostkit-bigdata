@@ -56,7 +56,7 @@ case class ColumnarSortExec(
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def requiredChildDistribution: Seq[Distribution] =
-    if (global) OrderedDistribution(sortOrder):: Nil else UnspecifiedDistribution:: Nil
+    if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
 
   override lazy val metrics = Map(
 
@@ -139,6 +139,6 @@ case class ColumnarSortExec(
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute ().")
+    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 }

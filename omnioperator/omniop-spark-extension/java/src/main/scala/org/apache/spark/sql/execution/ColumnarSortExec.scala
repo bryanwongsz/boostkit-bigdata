@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.ColumnarPluginConfig
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.{addAllAndGetIterator, genSortParam}
-import nova.hetu.omniruntime.operator.config.{Operatorconfig, SparkSpillConfig}
+import nova.hetu.omniruntime.operator.config.{OperatorConfig, SparkSpillConfig}
 import nova.hetu.omniruntime.operator.sort.OmniSortWithExprOperatorFactory
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.rdd.RDD
@@ -36,8 +36,8 @@ import org.apache.spark.sql.execution.util.SparkMemoryUtils
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
-case class ColumnarsortExec(
-     sortorder: Seg[Sortorder],
+case class ColumnarSortExec(
+     sortOrder: Seq[SortOrder],
      global: Boolean,
      child: SparkPlan,
      testSpillFrequency: Int = 0)
@@ -49,7 +49,7 @@ case class ColumnarsortExec(
 
   override def nodeName: String = "OmniColumnarSort"
 
-  override def output: Seg[Attribute] = child.output
+  override def output: Seq[Attribute] = child.output
 
   override def outputordering: Seq[Sortorder] = sortorder
 

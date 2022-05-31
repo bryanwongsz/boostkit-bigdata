@@ -56,7 +56,7 @@ class ColumnarShuffleExchangeExec(
                                    override val outputPartitioning: Partitioning,
                                    child: SparkPlan,
                                    shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS)
-  extends ShuffleExchangeExec(outputPartitioning,child) {
+  extends ShuffleExchangeExec(outputPartitioning, child) {
 
   private lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
@@ -108,10 +108,11 @@ class ColumnarShuffleExchangeExec(
       longMetric("splitTime"),
       longMetric("spillTime"))
   }
-  var cachedshuffleRDD: ShuffledColumnarRDD = _
+
+  var cachedShuffleRDD: ShuffledColumnarRDD = _
 
   override def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException
+    throw new UnsupportedOperationException()
   }
 
   def buildCheck(): Unit = {
@@ -164,147 +165,148 @@ object ColumnarShuffleExchangeExec extends Logging {
   ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
 
 
-      val rangePartitioner:Option[Partitioner] = newPartitioning match {
-        case RangePartitioning(sortingExpressions, numPartitions) =>
-          // Extract only fields used for sorting to avoid collecting large fields that does not
-          // affect sorting result when deciding partition bounds in RangePartitioner
-          val rddForSampling = rdd.mapPartitionsInternal { iter =>
-            // Internally,RangePartitioner runs a job on the RDD that samples keys to compute
-            // partition bounds.To get accurate samples, we need to copy the mutable keys.
-            iter.flatMap(batch=> {
-              val rows = batch.rowIterator.asScala
-              val projection =
-                UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
-              val mutablePair = new MutablePair[InternalRow, Null]()
-              rows.map(row => mutablePair.update(projection(row).copy(), null))
-            })
-          }
-          // Construct ordering on extracted sort key.
-          val orderingAttributes:Seq[SortOrder]=sortingExpressions.zipWithIndex.map {
-        case (ord,i)=>
-          ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
-      }
-      implicit val ordering = new LazilyGeneratedOrdering (orderingAttributes)
-      val part = new RangePartitioner(
-        numPartitions,
-        rddForSampling,
-        ascending=true,
-        samplePointsPerPartitionHint =SQLConf.get.rangeExchangeSampleSizePerPartition)
-      Some(part)
+    val rangePartitioner:Option[Partitioner] = newPartitioning match {
+      case RangePartitioning(sortingExpressions, numPartitions) =>
+        // Extract only fields used for sorting to avoid collecting large fields that does not
+        // affect sorting result when deciding partition bounds in RangePartitioner
+        val rddForSampling = rdd.mapPartitionsInternal { iter =>
+          // Internally,RangePartitioner runs a job on the RDD that samples keys to compute
+          // partition bounds.To get accurate samples, we need to copy the mutable keys.
+          iter.flatMap(batch=> {
+            val rows = batch.rowIterator.asScala
+            val projection =
+              UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
+            val mutablePair = new MutablePair[InternalRow, Null]()
+            rows.map(row => mutablePair.update(projection(row).copy(), null))
+          })
+        }
+        // Construct ordering on extracted sort key.
+        val orderingAttributes:Seq[SortOrder]=sortingExpressions.zipWithIndex.map {
+          case (ord,i)=>
+            ord.copy(child = BoundReference(i, ord.dataType, ord.nullable))
+        }
+        implicit val ordering = new LazilyGeneratedOrdering (orderingAttributes)
+        val part = new RangePartitioner(
+          numPartitions,
+          rddForSampling,
+          ascending=true,
+          samplePointsPerPartitionHint =SQLConf.get.rangeExchangeSampleSizePerPartition)
+        Some(part)
       case _ => None
-     }
-
-      val inputTypes=new Array[DataType](outputAttributes.size)
-      outputAttributes.zipWithIndex.foreach {
-        case (attr,i) =>
-          inputTypes(i) = sparkTypeToOmniType(attr.dataType, attr.metadata)
-      }
-
-      // gen RoundRobin pid
-      def getRoundRobinPartitionKey:(ColumnarBatch,Int) => IntVec = {
-        // 随机数
-        (columnarBatch: ColumnarBatch, numPartitions: Int) => {
-          val pidArr = new Array[Int](columnarBatch.numRows())
-          for (i <- 0 until columnarBatch.numRows()) {
-            val position = new Random(TaskContext.get().partitionId()).nextInt(numPartitions)
-            pidArr(i) = position + 1
-          }
-          val vec = new IntVec(columnarBatch.numRows())
-          vec.put(pidArr, 0, 0, pidArr.length)
-          vec
-        }
-      }
-
-      def addPidToColumnBatch(): (IntVec, ColumnarBatch) => (Int, ColumnarBatch) = (pidVec,cb) => {
-        val pidVecTmp=new OmniColumnVector(cb.numRows(), IntegerType, false)
-        pidVecTmp.setVec(pidVec)
-        val newColumns = (pidVecTmp +: (0 until cb.numCols).map(cb.column)).toArray
-        (0,new ColumnarBatch(newColumns,cb.numRows))
-      }
-      // only used for fallback range partitioning
-      def computeAndAddRangePartitionId(
-                                         cbIter:Iterator[ColumnarBatch],
-                                         partitionKeyExtractor:InternalRow=>Any):Iterator[(Int,  ColumnarBatch)] = {
-        val addPid2ColumnBatch = addPidToColumnBatch()
-        cbIter.filter(cb => cb.numRows != 0 && cb.numCols != 0).map {
-          cb =>
-            val pidArr = new Array[Int](cb.numRows)
-            (0 until cb.numRows).foreach { i =>
-              val row = cb.getRow(i)
-              val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-              pidArr(i) = pid
-            }
-            val pidVec = new IntVec(cb.numRows)
-            pidVec.put(pidArr, 0, 0, cb.numRows)
-
-            addPid2ColumnBatch(pidVec, cb)
-        }
-      }
-
-      val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
-        newPartitioning.numPartitions > 1
-      val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
-
-      val rddWithPartitionId: RDD[Product2[Int, ColumnarBatch]] = newPartitioning match {
-        case RoundRobinPartitioning(numPartitions) =>
-          // 按随机数分区
-          rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
-            val getRoundRobinPid = getRoundRobinPartitionKey
-            val addPid2ColumnBatch = addPidToColumnBatch()
-            cbIter.map { cb =>
-              val pidVec = getRoundRobinPid(cb, numPartitions)
-              addPid2ColumnBatch(pidVec, cb)
-            }
-          }, isOrderSensitive = isOrderSensitive)
-        case RangePartitioning(sortingExpressions, _) =>
-          // 排序，按采样数据进行分区
-          rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
-            val partitionKeyExtractor: InternalRow => Any = {
-              val projection =
-                UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
-              row => projection(row)
-            }
-            val newIter = computeAndAddRangePartitionId(cbIter, partitionKeyExtractor)
-            newIter
-          }, isOrderSensitive = isOrderSensitive)
-        case HashPartitioning(expressions, numPartitions) =>
-          rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
-            val addPid2ColumnBatch = addPidToColumnBatch()
-            // omni project
-            val genHashExpression = genHashExpr()
-            val omniExpr: String = genHashExpression(expressions, numPartitions, defaultMm3HashSeed, outputAttributes)
-            val factory = new OmniProjectOperatorFactory(Array(omniExpr), inputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
-
-            val op = factory.createOperator()
-            cbIter.map { cb =>
-              val vecs = transColBatchToOmniVecs(cb, true)
-              op.addInput(new VecBatch(vecs, cb.numRows()))
-              val res = op.getOutput
-              if (res.hasNext) {
-                // TODO call next()once while get all result?
-                val retBatch = res.next()
-                val pidVec = retBatch.getVectors()(0)
-                // close return VecBatch
-                retBatch.close()
-                addPid2ColumnBatch(pidVec.asInstanceOf[IntVec], cb)
-              } else {
-                throw new Exception("Empty Project Operator Result...")
-              }
-            }
-          }, isOrderSensitive = isOrderSensitive)
-    case SinglePartition=>
-      rdd.mapPartitionsWithIndexInternal((_,cbIter) =>{
-        cbIter.map {cb=>(0, cb)}
-      }, isOrderSensitive =isOrderSensitive)
     }
 
-    val numCols =outputAttributes.size
-    val intputTypeArr:Seq[DataType]=outputAttributes.map {attr=>
+    val inputTypes=new Array[DataType](outputAttributes.size)
+    outputAttributes.zipWithIndex.foreach {
+      case (attr,i) =>
+        inputTypes(i) = sparkTypeToOmniType(attr.dataType, attr.metadata)
+    }
+
+    // gen RoundRobin pid
+    def getRoundRobinPartitionKey:(ColumnarBatch,Int) => IntVec = {
+      // 随机数
+      (columnarBatch: ColumnarBatch, numPartitions: Int) => {
+        val pidArr = new Array[Int](columnarBatch.numRows())
+        for (i <- 0 until columnarBatch.numRows()) {
+          val position = new Random(TaskContext.get().partitionId()).nextInt(numPartitions)
+          pidArr(i) = position + 1
+        }
+        val vec = new IntVec(columnarBatch.numRows())
+        vec.put(pidArr, 0, 0, pidArr.length)
+        vec
+      }
+    }
+
+    def addPidToColumnBatch(): (IntVec, ColumnarBatch) => (Int, ColumnarBatch) = (pidVec,cb) => {
+      val pidVecTmp=new OmniColumnVector(cb.numRows(), IntegerType, false)
+      pidVecTmp.setVec(pidVec)
+      val newColumns = (pidVecTmp +: (0 until cb.numCols).map(cb.column)).toArray
+      (0,new ColumnarBatch(newColumns,cb.numRows))
+    }
+
+    // only used for fallback range partitioning
+    def computeAndAddRangePartitionId(
+                                       cbIter:Iterator[ColumnarBatch],
+                                       partitionKeyExtractor:InternalRow=>Any):Iterator[(Int,  ColumnarBatch)] = {
+      val addPid2ColumnBatch = addPidToColumnBatch()
+      cbIter.filter(cb => cb.numRows != 0 && cb.numCols != 0).map {
+        cb =>
+          val pidArr = new Array[Int](cb.numRows)
+          (0 until cb.numRows).foreach { i =>
+            val row = cb.getRow(i)
+            val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
+            pidArr(i) = pid
+          }
+          val pidVec = new IntVec(cb.numRows)
+          pidVec.put(pidArr, 0, 0, cb.numRows)
+
+          addPid2ColumnBatch(pidVec, cb)
+      }
+    }
+
+    val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&
+      newPartitioning.numPartitions > 1
+    val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
+
+    val rddWithPartitionId: RDD[Product2[Int, ColumnarBatch]] = newPartitioning match {
+      case RoundRobinPartitioning(numPartitions) =>
+        // 按随机数分区
+        rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
+          val getRoundRobinPid = getRoundRobinPartitionKey
+          val addPid2ColumnBatch = addPidToColumnBatch()
+          cbIter.map { cb =>
+            val pidVec = getRoundRobinPid(cb, numPartitions)
+            addPid2ColumnBatch(pidVec, cb)
+          }
+        }, isOrderSensitive = isOrderSensitive)
+      case RangePartitioning(sortingExpressions, _) =>
+        // 排序，按采样数据进行分区
+        rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
+          val partitionKeyExtractor: InternalRow => Any = {
+            val projection =
+              UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
+            row => projection(row)
+          }
+          val newIter = computeAndAddRangePartitionId(cbIter, partitionKeyExtractor)
+          newIter
+        }, isOrderSensitive = isOrderSensitive)
+      case HashPartitioning(expressions, numPartitions) =>
+        rdd.mapPartitionsWithIndexInternal((_, cbIter) => {
+          val addPid2ColumnBatch = addPidToColumnBatch()
+          // omni project
+          val genHashExpression = genHashExpr()
+          val omniExpr: String = genHashExpression(expressions, numPartitions, defaultMm3HashSeed, outputAttributes)
+          val factory = new OmniProjectOperatorFactory(Array(omniExpr), inputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
+          val op = factory.createOperator()
+
+          cbIter.map { cb =>
+            val vecs = transColBatchToOmniVecs(cb, true)
+            op.addInput(new VecBatch(vecs, cb.numRows()))
+            val res = op.getOutput
+            if (res.hasNext) {
+              // TODO call next()once while get all result?
+              val retBatch = res.next()
+              val pidVec = retBatch.getVectors()(0)
+              // close return VecBatch
+              retBatch.close()
+              addPid2ColumnBatch(pidVec.asInstanceOf[IntVec], cb)
+            } else {
+              throw new Exception("Empty Project Operator Result...")
+            }
+          }
+        }, isOrderSensitive = isOrderSensitive)
+    case SinglePartition =>
+    rdd.mapPartitionsWithIndexInternal((_,cbIter) =>{
+      cbIter.map {cb=>(0, cb)}
+    }, isOrderSensitive =isOrderSensitive)
+    }
+
+    val numCols = outputAttributes.size
+    val intputTypeArr:Seq[DataType] = outputAttributes.map {attr =>
       sparkTypeToOmniType(attr.dataType,attr.metadata)
     }
     val intputTypes = DataTypeSerializer.serialize(intputTypeArr.toArray)
 
-    val partitionInfo:PartitionInfo =newPartitioning match {
+    val partitionInfo:PartitionInfo = newPartitioning match {
       case SinglePartition =>
         new PartitionInfo("single", 1, numCols, intputTypes)
       case RoundRobinPartitioning(numPartitions) =>
@@ -313,41 +315,42 @@ object ColumnarShuffleExchangeExec extends Logging {
         new PartitionInfo("hash", numPartitions, numCols, intputTypes)
       case RangePartitioning(ordering, numPartitions) =>
         new PartitionInfo("range", numPartitions, numCols, intputTypes)
-        }
-          new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
-            rddWithPartitionId,
-            new PartitionIdPassthrough(newPartitioning.numPartitions),
-            serializer,
-            shuffleWriterProcessor = createShuffleWriteProcessor(writeMetrics),
-            partitionInfo = partitionInfo,
-            dataSize = dataSize,
-            bytesspilled = bytesSpilled,
-            numInputRows = mumInputRows,
-            splitTime = splitTime,
-            spillTime = spillTime)
-        }
+    }
 
-      // gen hash partition expression
-      def genHashExpr(): (Seq[Expression], Int, Int, Seq[Attribute]) => String = {
-        (expressions: Seq[Expression], numPartitions: Int, seed: Int, outputAttributes: Seq[Attribute]) => {
-          val exprIdMap = getExprIdMap(outputAttributes)
-          val EXP_JSON_FORMATER1 = ("{\"exprType\": \"FUNCTION\", \"returnTypet":1,\"function_name\":\"%s\",\"arguments\":[" +
-            "%s,{\"exprType\": \"LITERAL\", \"dataType\":1,\"isNull\":false,\"value\":%d}]}")
-          val EXP_JSON_FORMATER2 = ("{\"exprType\": \"FUNCTION\", \"returnType\":1,\"function_name\":\"%s\", \"arguments\": [%s,%s] }")
-          var omniExpr: String = ""
-          expressions.foreach { expr =>
-            val colExpr = rewriteToOmniJsonExpressionLiteral(expr, exprIdMap)
-            if (omniExpr.isEmpty) {
-              omniExpr = EXP_JSON_FORMATER1.format("mm3hash", colExpr, seed)
-            } else {
-              omniExpr = EXP_JSON_FORMATER2.format("mm3hash", colExpr, omniExpr)
-            }
+      new ColumnarShuffleDependency[Int, ColumnarBatch, ColumnarBatch](
+        rddWithPartitionId,
+        new PartitionIdPassthrough(newPartitioning.numPartitions),
+        serializer,
+        shuffleWriterProcessor = createShuffleWriteProcessor(writeMetrics),
+        partitionInfo = partitionInfo,
+        dataSize = dataSize,
+        bytesspilled = bytesSpilled,
+        numInputRows = mumInputRows,
+        splitTime = splitTime,
+        spillTime = spillTime)
+    }
+
+    // gen hash partition expression
+    def genHashExpr(): (Seq[Expression], Int, Int, Seq[Attribute]) => String = {
+      (expressions: Seq[Expression], numPartitions: Int, seed: Int, outputAttributes: Seq[Attribute]) => {
+        val exprIdMap = getExprIdMap(outputAttributes)
+        val EXP_JSON_FORMATER1 = ("{\"exprType\": \"FUNCTION\", \"returnType":1,\"function_name\":\"%s\",\"arguments\":[" +
+          "%s,{\"exprType\": \"LITERAL\", \"dataType\":1,\"isNull\":false,\"value\":%d}]}")
+        val EXP_JSON_FORMATER2 = ("{\"exprType\": \"FUNCTION\", \"returnType\":1,\"function_name\":\"%s\", \"arguments\": [%s,%s] }")
+        var omniExpr: String = ""
+        expressions.foreach { expr =>
+          val colExpr = rewriteToOmniJsonExpressionLiteral(expr, exprIdMap)
+          if (omniExpr.isEmpty) {
+            omniExpr = EXP_JSON_FORMATER1.format("mm3hash", colExpr, seed)
+          } else {
+            omniExpr = EXP_JSON_FORMATER2.format("mm3hash", colExpr, omniExpr)
           }
-          omniExpr = EXP_JSON_FORMATER1.format("pmod", omniExpr, numPartitions)
-          logDebug(s"hash omni expression: $omniExpr")
-          omniExpr
         }
+        omniExpr = EXP_JSON_FORMATER1.format("pmod", omniExpr, numPartitions)
+        logDebug(s"hash omni expression: $omniExpr")
+        omniExpr
       }
+    }
 
 }
 

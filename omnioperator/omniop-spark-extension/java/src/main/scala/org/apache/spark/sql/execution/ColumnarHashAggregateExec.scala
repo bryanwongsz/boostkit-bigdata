@@ -22,6 +22,12 @@ import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor._
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
 import org.apache.spark.broadcast.Broadcast
+import nova.hetu.omniruntime.`type`.DataType
+import nova.hetu.omniruntime.constants.FunctionType
+import nova.hetu.omniruntime.operator.aggregator.OmniHashAggregationWithExprOperatorFactory
+import nova.hetu.omniruntime.operator.config.OperatorConfig
+import nova.hetu.omniruntime.operator.project.OmniProjectOperatorFactory
+import nova.hetu.omniruntime.vector.{Vec, VecBatch}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -41,10 +47,10 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class ColumnarHashAggregateExec(
                                       requiredChildDistributionExpressions: Option[Seq[Expression]],
                                       groupingExpressions: Seq[NamedExpression],
-                                      aggregateExpressions:Seq[AggregateExpression],
+                                      aggregateExpressions: Seq[AggregateExpression],
                                       aggregateAttributes: Seq[Attribute],
                                       initialInputBufferOffset: Int,
-                                      resultExpressions:Seq[NamedExpression],
+                                      resultExpressions: Seq[NamedExpression],
                                       child: SparkPlan)
   extends BaseAggregateExec
     with AliasAwareOutputPartitioning {
@@ -133,12 +139,6 @@ case class ColumnarHashAggregateExec(
     }
   }
 
-  /**
-   * Produces the result of the query as a broadcast variable.
-   *
-   * Overridden by concrete implementations of SparkPlan.
-   */
-  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = super.doExecuteBroadcast()
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val addInputTime = longMetric("addInputTime")
@@ -191,7 +191,7 @@ case class ColumnarHashAggregateExec(
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression:${exp}")
+          case _ => throw new RuntimeException(s"Unsupported aggregate expression: ${exp}")
         }
       } else {
         throw new RuntimeException(s"Unsupported aggregate mode: ${exp.mode}")
@@ -249,7 +249,7 @@ case class ColumnarHashAggregateExec(
 
       val hashAggIter = new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
-          val startGetop: Long = System.nanoTime()
+          val startGetOp: Long = System.nanoTime()
           val hasNext = opOutput.hasNext
           getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
           hasNext
@@ -283,15 +283,15 @@ case class ColumnarHashAggregateExec(
         dealPartitionData(null, null, addInputTime, omniCodegenTime,
           getOutputTime, projectInputTypes, projectExpressions, hashAggIter, this.schema)
       } else {
-        hashAggIter
+         hashAggIter
       }
     }
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
-     throw new UnsupportedOperationException("This operator doesn't support doExecute().")
+    throw new UnsupportedOperationException("This operator doesn't support doExecute().")
   }
-  }
+}
 
 object ColumnarHashAggregateExec {
   def supportsAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean = {

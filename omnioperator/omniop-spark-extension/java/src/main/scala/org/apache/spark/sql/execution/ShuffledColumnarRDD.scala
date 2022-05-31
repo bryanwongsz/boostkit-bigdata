@@ -24,16 +24,16 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
-* The [[Partition]] used by [[ShuffledRowRDD]].
-*/
+ * The [[Partition]] used by [[ShuffledRowRDD]].
+ */
 private final case class ShuffledColumnarRDDPartition(
-   index:Int,spec:ShufflePartitionSpec) extends Partition
+    index:Int,spec:ShufflePartitionSpec) extends Partition
 
 class ShuffledColumnarRDD(
-   var dependency:ShuffleDependency[Int,ColumnarBatch,ColumnarBatch],
-   metrics:Map[String,SQLMetric],
-   partitionSpecs:Array[ShufflePartitionSpec])
-  extends RDD[ColumnarBatch](dependency.rdd.context,Nil) {
+    var dependency:ShuffleDependency[Int,ColumnarBatch,ColumnarBatch],
+    metrics:Map[String,SQLMetric],
+    partitionSpecs:Array[ShufflePartitionSpec])
+  extends RDD[ColumnarBatch](dependency.rdd.context, Nil) {
 
   def this(
       dependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch],
@@ -56,6 +56,7 @@ class ShuffledColumnarRDD(
         Some(new CoalescedPartitioner(dependency.partitioner, indices))
       } else {
         None
+      }
     } else {
       None
     }
@@ -119,5 +120,4 @@ class ShuffledColumnarRDD(
     }
     reader.read().asInstanceOf[Iterator[Product2[Int, ColumnarBatch]]].map(_._2)
   }
-}
 }

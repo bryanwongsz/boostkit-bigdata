@@ -42,10 +42,10 @@
                     </exclusion>
                     <exclusion>
                         <groupId>org.slf4j</groupId>
-                        <artifactId>s1f4j-1og4j12</artifactId>
+                        <artifactId>slf4j-log4j12</artifactId>
                     </exclusion>
                     <exclusion>
-                        <groupId>1og4j</groupId>
+                        <groupId>log4j</groupId>
                         <artifactId>log4j</artifactId>
                     </exclusion>
                     <exclusion>
@@ -111,7 +111,8 @@
                 <!-- test dependencies -->
                 <dependency>
                     <groupId>org.apache.spark</groupId>
-                    <artifactId>spark-core_${scala.binary.version}</artifactId> <version>${spark.version}</version>
+                    <artifactId>spark-core_${scala.binary.version}</artifactId>
+                    <version>${spark.version}</version>
                     <type>test-jar</type>
                     <scope>test</scope>
                     <exclusions>

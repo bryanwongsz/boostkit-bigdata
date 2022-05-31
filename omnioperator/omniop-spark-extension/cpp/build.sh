@@ -2,7 +2,7 @@
 set -eu
 
 CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")"; pwd)
-echo CURRENT_DIR
+echo $CURRENT_DIR
 cd ${CURRENT_DIR}
 if [ -d build ]; then
     rm -r build
@@ -19,7 +19,7 @@ if [ $# != 0 ]; then
   elif [ $1 = 'trace' ]; then
     echo "-- Enable Trace"
     options="$options -DCMAKE_BUILD_TYPE=Debug -DTRACE_RUNTIME=ON"
-  elif [ $1 -'release' ];then
+  elif [ $1 = 'release' ];then
     echo "-- Enable Release"
     options="$options -DCMAKE_BUILD_TYPE=Release"
   elif [ $1 = 'test' ];then

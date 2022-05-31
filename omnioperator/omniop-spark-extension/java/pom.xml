@@ -2,6 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.huawei.kunpeng</groupId>
@@ -12,7 +13,7 @@
 
     <artifactId>boostkit-omniop-spark</artifactId>
     <packaging>jar</packaging>
-    <name>BoostKit Spark Native Sql Engine Extension With Omnioperator</name>
+    <name>BoostKit Spark Native Sql Engine Extension With OmniOperator</name>
 
     <properties>
         <cpp.dir>../cpp/</cpp.dir>
@@ -22,7 +23,7 @@
         <protobuf.maven.version>0.6.1</protobuf.maven.version>
         <protoc.version>3.0.0</protoc.version>
         <os.plugin.version>1.6.2</os.plugin.version>
-        <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars </jars.target.dir>
+        <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
         <dep.os.arch></dep.os.arch>
     </properties>
 <dependencies>
@@ -83,7 +84,7 @@
     </dependency>
     <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-sq1_S{scala.binary.version}</artifactId>
+        <artifactId>spark-sql_${scala.binary.version}</artifactId>
         <type>test-jar</type>
         <version>3.1.1</version>
         <scope>test</scope>
@@ -106,7 +107,7 @@
 <!--</dependency>-->
     </dependencies>
     <build>
-        <finalName>${artifactId}-$(version}${dep.os.arch}</finalName>
+        <finalName>${artifactId}-${version}${dep.os.arch}</finalName>
         <resources>
            <resource>
                <directory>${cpp.build.dir}</directory>
@@ -197,8 +198,8 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven-plugins</groupId>
-                <artifactId>maven-compiler plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.0</version>
                 <configuration>
                     <source>1.8</source>
@@ -241,10 +242,10 @@
                     <failOnViolation>true</failOnViolation>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <failOnWarning>false</failOnWarning>
-                    <sourceDirectory>$(project.basedir}/src/main/scala</sourceDirectory>
+                    <sourceDirectory>${project.basedir}/src/main/scala</sourceDirectory>
                     <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
                     <configLocation>${user.dir}/scalastyle-config.xml</configLocation>
-                    <outputFile>$(project.basedir}/target/scalastyle-output.xml</outputFile>
+                    <outputFile>${project.basedir}/target/scalastyle-output.xml</outputFile>
                     <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
                     <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
                 </configuration>
@@ -272,7 +273,7 @@
                         <directory>${project.basedir}/src/test/scala</directory>
                     </testSourceDirectories>
                     <configLocation>dev/checkstyle.xml</configLocation>
-                    <outputFile>$(project.basedir}/target/checkstyle-output.xml</outputFile>
+                    <outputFile>${project.basedir}/target/checkstyle-output.xml</outputFile>
                     <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
                     <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
                 </configuration>
@@ -368,8 +369,3 @@
         </plugins>
     </build>
 </project>
-
-
-
-
-

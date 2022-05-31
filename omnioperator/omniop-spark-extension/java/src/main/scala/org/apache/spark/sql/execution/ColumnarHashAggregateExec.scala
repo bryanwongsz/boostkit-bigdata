@@ -41,7 +41,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
- *Hash-based aggregate operator that can also fallback to sorting when data exceeds memory size.
+ * Hash-based aggregate operator that can also fallback to sorting when data exceeds memory size.
  */
 case class ColumnarHashAggregateExec(
                                     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -52,83 +52,83 @@ case class ColumnarHashAggregateExec(
                                     resultExpressions:Seq[NamedExpression],
                                     child: SparkPlan)
   extends BaseAggregateExec
-    with AliasAwareOutputPartitioning{
+    with AliasAwareOutputPartitioning {
 
   override lazy val metrics = Map(
     "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
     "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
     "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
-    "omniCodegenTime"  -> SQLMetrics.createTimingMetric(sparkContext, "time in omni codegen"),
-    "getOutputTime"  ->  SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
+    "omniCodegenTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni codegen"),
+    "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-    "numOutputVecBatchs"  -> SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"))
+    "numOutputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"))
 
 
   override def supportsColumnar: Boolean = true
 
-  override def nodeName:String="OmniColumnarHashAggregate"
+  override def nodeName: String = "OmniColumnarHashAggregate"
 
-  def buildCheck():Unit= {
+  def buildCheck(): Unit = {
     val attrExpsIdMap = getExprIdMap(child.output)
     val omniGroupByChanel = groupingExpressions.map(
-      exp=> rewriteToOmniJsonExpressionLiteral(exp, attrExpsIdMap)).toArray
+      exp => rewriteToOmniJsonExpressionLiteral(exp, attrExpsIdMap)).toArray
 
-    var omniInputRaw=false
-    var omniOutputPartial=false
+    var omniInputRaw = false
+    var omniOutputPartial = false
     val omniAggTypes = new Array[DataType](aggregateExpressions.size)
-    val omniAggFunctionTypes = new Array[FunctionType] (aggregateExpressions.size)
+    val omniAggFunctionTypes = new Array[FunctionType](aggregateExpressions.size)
     val omniAggOutputTypes = new Array[DataType](aggregateExpressions.size)
-    val omniAggChannels= new Array[String] (aggregateExpressions.size)
-    var index=0
-    for (exp<-aggregateExpressions) {
+    val omniAggChannels = new Array[String](aggregateExpressions.size)
+    var index = 0
+    for (exp <- aggregateExpressions) {
       if (exp.filter.isDefined) {
         throw new UnsupportedOperationException("Unsupported filter in AggregateExpression")
       }
       if (exp.isDistinct) {
-        throw new RuntimeException(s"Unsupported aggregate expression with distinct flag"
+        throw new RuntimeException(s"Unsupported aggregate expression with distinct flag")
       }
-        if (exp.mode == Final) {
-          exp.aggregateFunction match {
-          case Sum(_) | Min(_) | Max(_) |Count(_)=>
-          val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
-          omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType,aggExp.metadata)
-          omniAggFunctionTypes(index) = toOmniAggFunType(exp)
-          omniAggOutputTypes(index)=
-            sparkTypeToOmniType(exp.aggregateFunction.dataType)
-          omniAggChannels(index) =
-            rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
+      if (exp.mode == Final) {
+        exp.aggregateFunction match {
+          case Sum(_) | Min(_) | Max(_) | Count(_) =>
+            val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
+            omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType, aggExp.metadata)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggOutputTypes(index) =
+              sparkTypeToOmniType(exp.aggregateFunction.dataType)
+            omniAggChannels(index) =
+              rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
           case _ => throw new RuntimeException(s"Unsupported aggregate expression: $exp")
-          }
-        } else if (exp.mode == Partial) {
-          omniInputRaw = true
-          omniOutputPartial = true
-          exp.aggregateFunction match {
+        }
+      } else if (exp.mode == Partial) {
+        omniInputRaw = true
+        omniOutputPartial = true
+        exp.aggregateFunction match {
           case Sum(_) | Min(_) | Max(_) | Count(_) =>
             val aggExp = exp.aggregateFunction.children.head
             omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType)
             omniAggFunctionTypes(index) = toOmniAggFunType(exp)
-            omniAggOutputTypes(index)=
+            omniAggOutputTypes(index) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
-            omniAggChannels(index)=
+            omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
           case _ => throw new RuntimeException(s"Unsupported aggregate expression: $exp")
-          }
-        } else {
-          throw new RuntimeException(s"Unsupported aggregate mode: $exp.mode")
         }
-        index += 1
+      } else {
+        throw new RuntimeException(s"Unsupported aggregate mode: $exp.mode")
+      }
+      index += 1
     }
 
     val omniSourceTypes = new Array[DataType](child.outputSet.size)
-    val inputIter=child.outputSet.toIterator
-    var i=0
+    val inputIter = child.outputSet.toIterator
+    var i = 0
     while (inputIter.hasNext) {
-      val inputAttr=inputIter.next()
+      val inputAttr = inputIter.next()
       omniSourceTypes(i) = sparkTypeToOmniType(inputAttr.dataType, inputAttr.metadata)
-      i+=1
+      i += 1
     }
 
-    //·check for final project
+    // check for final project
     if (!omniOutputPartial) {
       val finalOut = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
       val projectInputTypes = finalOut.map(
@@ -137,127 +137,163 @@ case class ColumnarHashAggregateExec(
         exp => rewriteToOmniJsonExpressionLiteral(exp, getExprIdMap(finalOut))).toArray
     }
   }
-      override def doExecuteColumnar():RDD[ColumnarBatch] = {
-        val addInputTime = longMetric(name="addInputTime")
-        val numInputRows = longMetric(name="numInputRows")
-        val numInputVecBatchs = longMetric(name="numInputVecBatchs")
-        val omniCodegenTime = longMetric(name="omniCodegenTime")
-        val getOutputTime = longMetric(name="getOutputTime")
-        val numOutputRows = longMetric(name="numOutputRows")
-        val numOutputVecBatchs = longMetric(name="numOutputVecBatchs")
 
-        val attrExpsIdMap = getExprIdMap(child.output)
-        val omniGroupByChanel = groupingExpressions.map(
-          exp=>rewriteToOmniJsonExpressionLiteral(exp,attrExpsIdMap)).toArray
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    val addInputTime = longMetric("addInputTime")
+    val numInputRows = longMetric("numInputRows")
+    val numInputVecBatchs = longMetric("numInputVecBatchs")
+    val omniCodegenTime = longMetric("omniCodegenTime")
+    val getOutputTime = longMetric("getOutputTime")
+    val numOutputRows = longMetric("numOutputRows")
+    val numOutputVecBatchs = longMetric("numOutputVecBatchs")
 
-        var omniInputRaw = false
-        var omniOutputPartial = false
-        val omniAggTypes = new Array[DataType](aggregateExpressions.size)
-        val omniAggFunctionTypes = new Array[FunctionType](aggregateExpressions.size)
-        val omniAggOutputTypes = new Array[DataType](aggregateExpressions.size)
-        val omniAggChannels = new Array[String](aggregateExpressions.size)
-        var index=0
-        for (exp <- aggregateExpressions) {
-          if (exp.filter.isDefined) {
-            throw new UnsupportedOperationException("Unsupported filter in AggregateExpression")
-          }
-        if (exp.isDistinct) {
-          throw new RuntimeException("Unsupported aggregate expression with distinct flag")
+    val attrExpsIdMap = getExprIdMap(child.output)
+    val omniGroupByChanel = groupingExpressions.map(
+      exp => rewriteToOmniJsonExpressionLiteral(exp, attrExpsIdMap)).toArray
+
+    var omniInputRaw = false
+    var omniOutputPartial = false
+    val omniAggTypes = new Array[DataType](aggregateExpressions.size)
+    val omniAggFunctionTypes = new Array[FunctionType](aggregateExpressions.size)
+    val omniAggOutputTypes = new Array[DataType](aggregateExpressions.size)
+    val omniAggChannels = new Array[String](aggregateExpressions.size)
+    var index = 0
+    for (exp <- aggregateExpressions) {
+      if (exp.filter.isDefined) {
+        throw new UnsupportedOperationException("Unsupported filter in AggregateExpression")
+      }
+      if (exp.isDistinct) {
+        throw new RuntimeException("Unsupported aggregate expression with distinct flag")
+      }
+      if (exp.mode == Final) {
+        exp.aggregateFunction match {
+          case Sum(_) | Min(_) | Max(_) | Count(_) =>
+            val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
+            omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType, aggExp.metadata)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggOutputTypes(index) =
+              sрarkTурeToOmniTуpе(exp.aggregateFunction.dataType)
+            omniAggChannels(index) =
+              rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
+          case _ => throw new RuntimeException(s"Unsupported aggregate aggregateFunction: ${exp}")
         }
-        if (exp.mode == Final) {
-          exp.aggregateFunction match {
-            case Sum(_)| Min(_) | Max(_) | Count(_) =>
-                val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
-                omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType, aggExp.metadata)
-                omniAggFunctionTypes(index) = toOmniAggFunType(exp)
-                omniAggOutputTypes(index) =
-                  sрarkTурeToOmniTуpе(exp.aggregateFunction.dataType)
-                omniAggChannels(index) =
-                  rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-            case _=> throw new RuntimeException(s"Unsupported aggregate aggregateFunction: $(exp)")
-          }
-        } else if (exp.mode == Partial) {
-            omniInputRaw = true
-            omniOutputPartial = true
-            exp.aggregateFunction match {
-              case Sum(_)| Min(_) | Max(_) | Count(_) =>
-              val aggExp = exp.aggregateFunction.children.head
-              omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType)
+      } else if (exp.mode == Partial) {
+        omniInputRaw = true
+        omniOutputPartial = true
+        exp.aggregateFunction match {
+          case Sum(_) | Min(_) | Max(_) | Count(_) =>
+            val aggExp = exp.aggregateFunction.children.head
+            omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggOutputTypes(index) =
+              sparkTypeToOmniType(exp.aggregateFunction.dataType)
+            omniAggChannels(index) =
+              rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
+          case _ => throw new RuntimeException(s"Unsupported aggregate expresion:${exp}")
+        }
+      } else {
+        throw new RuntimeException(s"Unsupported aggregate mode: ${exp.mode}")
+      }
+      index += 1
+    }
 
-                child.executeColumnar().mapPartitionsWithIndex { (index, iter)=>
-                  val startCodegen=System.nanoTime()
-                  val factory=new OmniHashAggregationWithExproperatorFactory(
-                    omniGroupByChanel,
-                    omniAggChannels,
-                    omniSourceTypes,
-                    omniAggFunctionTypes,
-                    omniAggoutputTypes,
-                    omniInputRaw,
-                    omnioutputPartial,
-                    new operatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
-                  val operator=factory.createoperator
-                  omniCodegenTime+=NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
-                  while(iter.hasNext){
-                    val batch=iter.next()
-                    val input =transColBatchToomniVecs(batch)
-                    val startInput=System.nanoTime()
-                    val vecBatch=new VecBatch(input,batch.numRows())
-                    operator.addInput(vecBatch)
-                    addInputTime +=NANOSECONDS.toMillis(System.nanoTime() - startInput)
-                    numInputVecBatchs +=1
-                    numInputRows +=batch.numRows()
-                  }
-                  val startGetop=System.nanoTime()
-                  val opoutput=operator.getoutput
-                  getoutputTime+=NANOSECONDS.toMillis(System.nanoTime() - startGetop)
-                  // close operator
-                  SparkMemoryUtils.addLeaksafeTaskCompletionbistener[Unit](=>{
-                  operator.close()
-                  1)
-                  var localSchema=this.schema
-                  if (!omnioutputPartial){
-                    val omnifinaloutSchama = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
-                    localSchema = StructType.fromAttributes(omnifinaloutSchama)
-                  }
-                  val hashAggIter = new Iterator[ColumnarBatch](
-                  override def hasNext: Boolean={
-                    val startGetop: Long = System.nanoTime()
-                    val hasNext =opoutput.hasNext
-                    getoutputTime +=NANOSECONDS.toMil1is(System.nanoTime() - startGetop)
-                    hasNext
-                    {
-                      override def next():ColumnarBatch={
-                        val startGetop =System.nanoTime()
-                        val vecBatch=opoutput.next()
-                        getoutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetop)
-                        val vectors:Seq[OmniColumnVector] = OmniColumnVector.allocateColumns(
-                          vecBatch.getRowCount,localschema,false)
-                        vectors.zipWithIndex.foreach { case (vector, i) =>
-                          vector.reset()
-                          vector.setVec(vecBatch.getVectors()(i))
-                        }
-                        numoutputRows +=vecBatch.getRowCount
-                        numoutputVecBatchs+=1
-                        vecBatch.close()
-                        new ColumnarBatch(vectors.toArray,vecBatch.getRowCount)
-                        {
-                        }
-                        if(!omnioutputPartial){
-                          val finalout =groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
-                          val projectInputTypes=finalout.map(
-                            exp =>sparkTypeToomniType (exp.dataType,exp.metadata)).toArray
-                          val projectExpressions = resultExpressions.map(
-                            exp=>rewriteToomniJsonExpressionLiteral(exp,getExprIdMap(finalout))).toArray
-                          dealPartitionData(null,null, addInputTime,omniCodegenTime,
-                            getoutputTime,projectInputTypes,projectExpressions,hashAggIter,this.schema)
-                        }else{
-                          hashAggIter
-                          {
-                            {
-                              {
-                                override protected def doExecute():RDD[InternalRow]={
-                                } throw new UnsupportedoperationException("This operator doesn't support doExecute().")
-                              { bject ColumnarHashAggregateExec{
-                                def supportsAggregate(aggregateBufferAttributes: Seq[Attribute]):Boolean ={
-                                  val aggregationBufferschema=structType.fromAttributes(aggregateBufferAttributes)
-                                  { UnsafeFixedwidthAggregationMap.supportsAggregationBufferSchema (aggregationBufferSchema) 15 1
+    val omniSourceTypes = new Array[DataType](child.outputSet.size)
+    val inputIter = child.outputSet.toIterator
+    var i = 0
+    while (inputIter.hasNext) {
+      val inputAttr = inputIter.next()
+      omniSourceTypes(i) = sparkTypeToOmniType(inputAttr.dataType, inputAttr.metadata)
+      i += 1
+    }
+
+    child.executeColumnar().mapPartitionsWithIndex { (index, iter) =>
+      val startCodegen = System.nanoTime()
+      val factory = new OmniHashAggregationWithExprOperatorFactory(
+        omniGroupByChanel,
+        omniAggChannels,
+        omniSourceTypes,
+        omniAggFunctionTypes,
+        omniAggOutputTypes,
+        omniInputRaw,
+        omniOutputPartial,
+        new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
+      val operator = factory.createOperator
+      omniCodegenTime += NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
+
+      while (iter.hasNext) {
+        val batch = iter.next()
+        val input = transColBatchToOmniVecs(batch)
+        val startInput = System.nanoTime()
+        val vecBatch = new VecBatch(input, batch.numRows())
+        operator.addInput(vecBatch)
+        addInputTime += NANOSECONDS.toMillis(System.nanoTime() - startInput)
+        numInputVecBatchs += 1
+        numInputRows += batch.numRows()
+      }
+      val startGetOp = System.nanoTime()
+      val opOutput = operator.getOutput
+      getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
+
+      // close operator
+      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
+        operator.close()
+      })
+
+      var localSchema = this.schema
+      if (!omniOutputPartial) {
+        val omnifinalOutSchama = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
+        localSchema = StructType.fromAttributes(omnifinalOutSchama)
+      }
+
+      val hashAggIter = new Iterator[ColumnarBatch] {
+        override def hasNext: Boolean = {
+          val startGetop = System.nanoTime()
+          val hasNext = opOutput.hasNext
+          getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetop)
+          hasNext
+        }
+
+        override def next(): ColumnarBatch = {
+          val startGetOp = System.nanoTime()
+          val vecBatch = opOutput.next()
+          getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
+          val vectors: Seq[OmniColumnVector] = OmniColumnVector.allocateColumns(
+            vecBatch.getRowCount, localSchema, false)
+          vectors.zipWithIndex.foreach { case (vector, i) =>
+            vector.reset()
+            vector.setVec(vecBatch.getVectors()(i))
+          }
+          numOutputRows += vecBatch.getRowCount
+          numOutputVecBatchs += 1
+
+          vecBatch.close()
+          new ColumnarBatch(vectors.toArray, vecBatch.getRowCount)
+        }
+      }
+      if (!omniOutputPartial) {
+        val finalOut = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
+        val projectInputTypes = finalOut.map(
+          exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
+        val projectExpressions = resultExpressions.map(
+          exp => rewriteToOmniJsonExpressionLiteral(exp, getExprIdMap(finalOut))).toArray
+
+        dealPartitionData(null, null, addInputTime, omniCodegenTime,
+          getOutputTime, projectInputTypes, projectExpressions, hashAggIter, this.schema)
+      } else {
+        hashAggIter
+      }
+    }
+  }
+}
+
+override protected def doExecute(): RDD[InternalRow] = {
+     throw new UnsupportedoperationException("This operator doesn't support doExecute().")
+  }
+  }
+
+object ColumnarHashAggregateExec {
+  def supportsAggregate(aggregateBufferAttributes: Seq[Attribute]): Boolean = {
+    val aggregationBufferSchema = StructType.fromAttributes(aggregateBufferAttributes)
+    UnsafeFixedWidthAggregationMap.supportsAggregationBufferSchema(aggregationBufferSchema)
+  }
+}

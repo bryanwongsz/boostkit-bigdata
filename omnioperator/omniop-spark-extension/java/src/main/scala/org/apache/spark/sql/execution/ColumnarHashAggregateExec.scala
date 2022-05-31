@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor._
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
-import org.apache.spark.broadcast.Broadcast
 import nova.hetu.omniruntime.`type`.DataType
 import nova.hetu.omniruntime.constants.FunctionType
 import nova.hetu.omniruntime.operator.aggregator.OmniHashAggregationWithExprOperatorFactory

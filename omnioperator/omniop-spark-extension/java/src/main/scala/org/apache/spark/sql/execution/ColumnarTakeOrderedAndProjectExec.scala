@@ -38,10 +38,10 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarTakeOrderedAndProjectExec (
-    limit:Int,
+    limit: Int,
     sortOrder: Seq[SortOrder],
     projectList: Seq[NamedExpression],
-    child:SparkPlan)
+    child: SparkPlan)
   extends UnaryExecNode {
 
   override def supportsColumnar: Boolean = true

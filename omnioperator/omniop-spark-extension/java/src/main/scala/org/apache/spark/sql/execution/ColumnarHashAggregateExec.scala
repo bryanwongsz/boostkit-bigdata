@@ -21,12 +21,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor._
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
-import nova.hetu.omniruntime.`type`.DataType
-import nova.hetu.omniruntime.constants.FunctionType
-import nova.hetu.omniruntime.operator.aggregator.OmniHashAggregationWithExprOperatorFactory
-import nova.hetu.omniruntime.operator.config.OperatorConfig
-import nova.hetu.omniruntime.operator.project.OmniProjectOperatorFactory
-import nova.hetu.omniruntime.vector.{Vec, VecBatch}
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -44,13 +39,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
  * Hash-based aggregate operator that can also fallback to sorting when data exceeds memory size.
  */
 case class ColumnarHashAggregateExec(
-                                    requiredChildDistributionExpressions: Option[Seq[Expression]],
-                                    groupingExpressions: Seq[NamedExpression],
-                                    aggregateExpressions:Seq[AggregateExpression],
-                                    aggregateAttributes: Seq[Attribute],
-                                    initialInputBufferOffset: Int,
-                                    resultExpressions:Seq[NamedExpression],
-                                    child: SparkPlan)
+                                      requiredChildDistributionExpressions: Option[Seq[Expression]],
+                                      groupingExpressions: Seq[NamedExpression],
+                                      aggregateExpressions:Seq[AggregateExpression],
+                                      aggregateAttributes: Seq[Attribute],
+                                      initialInputBufferOffset: Int,
+                                      resultExpressions:Seq[NamedExpression],
+                                      child: SparkPlan)
   extends BaseAggregateExec
     with AliasAwareOutputPartitioning {
 
@@ -138,6 +133,13 @@ case class ColumnarHashAggregateExec(
     }
   }
 
+  /**
+   * Produces the result of the query as a broadcast variable.
+   *
+   * Overridden by concrete implementations of SparkPlan.
+   */
+  override protected[sql] def doExecuteBroadcast[T](): Broadcast[T] = super.doExecuteBroadcast()
+
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val addInputTime = longMetric("addInputTime")
     val numInputRows = longMetric("numInputRows")
@@ -175,7 +177,7 @@ case class ColumnarHashAggregateExec(
               sрarkTурeToOmniTуpе(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate aggregateFunction: ${exp}")
+          case _ => throw new RuntimeException(s"Unsupported aggregate expression: ${exp}")
         }
       } else if (exp.mode == Partial) {
         omniInputRaw = true
@@ -189,7 +191,7 @@ case class ColumnarHashAggregateExec(
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expresion:${exp}")
+          case _ => throw new RuntimeException(s"Unsupported aggregate expression:${exp}")
         }
       } else {
         throw new RuntimeException(s"Unsupported aggregate mode: ${exp.mode}")
@@ -241,15 +243,15 @@ case class ColumnarHashAggregateExec(
 
       var localSchema = this.schema
       if (!omniOutputPartial) {
-        val omnifinalOutSchama = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
-        localSchema = StructType.fromAttributes(omnifinalOutSchama)
+          val omnifinalOutSchama = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
+          localSchema = StructType.fromAttributes(omnifinalOutSchama)
       }
 
       val hashAggIter = new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
-          val startGetop = System.nanoTime()
+          val startGetop: Long = System.nanoTime()
           val hasNext = opOutput.hasNext
-          getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetop)
+          getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
           hasNext
         }
 
@@ -263,6 +265,7 @@ case class ColumnarHashAggregateExec(
             vector.reset()
             vector.setVec(vecBatch.getVectors()(i))
           }
+
           numOutputRows += vecBatch.getRowCount
           numOutputVecBatchs += 1
 
@@ -284,10 +287,9 @@ case class ColumnarHashAggregateExec(
       }
     }
   }
-}
 
-override protected def doExecute(): RDD[InternalRow] = {
-     throw new UnsupportedoperationException("This operator doesn't support doExecute().")
+  override protected def doExecute(): RDD[InternalRow] = {
+     throw new UnsupportedOperationException("This operator doesn't support doExecute().")
   }
   }
 

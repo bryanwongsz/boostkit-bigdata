@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor.{getExprIdMap, rewriteToOmniJsonExpressionLiteral, sparkTypeToOmniType}
 import com.huawei.boostkit.spark.serialize.ColumnarBatchSerializer
-import com.huawei.boostkit.spark.util.OmniAdaptorUtil.{addAllAndGetIterator, gensortParam}
+import com.huawei.boostkit.spark.util.OmniAdaptorUtil.{addAllAndGetIterator, genSortParam}
 import nova.hetu.omniruntime.`type`.DataType
 import nova.hetu.omniruntime.operator.config.OperatorConfig
 import nova.hetu.omniruntime.operator.topn.OmniTopNWithExprOperatorFactory
@@ -37,28 +37,28 @@ import org.apache.spark.sql.execution.util.SparkMemoryUtils
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-case class ColumnarTakeorderedAndProjectExec (
-      limit:Int,
-      sortorder: Seq[SortOrder],
-      projectList: Seq[NamedExpression],
-      child:SparkPlan)
+case class ColumnarTakeOrderedAndProjectExec (
+        limit:Int,
+        sortOrder: Seq[SortOrder],
+        projectList: Seq[NamedExpression],
+        child:SparkPlan)
   extends UnaryExecNode {
 
-  override def supportsColumnar:Boolean = true
+  override def supportsColumnar: Boolean = true
 
-  override def nodeName:String = "OmniColumnarTakeOrderedAndProject"
+  override def nodeName: String = "OmniColumnarTakeOrderedAndProject"
 
   val serializer: Serializer = new ColumnarBatchSerializer(
     longMetric("avgReadBatchNumRows"),
     longMetric("numOutputRows"))
-  private lazy val writeMetrics=
+  private lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
   private lazy val readMetrics=
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
   override lazy val metrics: Map[String, SQLMetric] = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
     "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-    "splitrime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
+    "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_split"),
     "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "shuffle spill time"),
     "avgReadBatchNumRows" -> SQLMetrics
       .createAverageMetric(sparkContext, "avg read batch num rows"),
@@ -66,17 +66,17 @@ case class ColumnarTakeorderedAndProjectExec (
     "numOutputRows" -> SQLMetrics
       .createMetric(sparkContext, "number of output rows"),
     // omni
-    "outputDatasize" -> SQLMetrics.createSizeMetric(sparkContext, "output data size"),
-    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rowal'),
-  "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
-  "getoutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getoutput"),
-  "omniCodegenTime" -> SQLMetrics.createTimingMetric(sparkContext,"time in omni codegen"),
-  "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
-  "numOutputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"),
-  "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addinput")
+    "outputDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "output data size"),
+    "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows'),
+    "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput"),
+    "getOutputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni getOutput"),
+    "omniCodegenTime" -> SQLMetrics.createTimingMetric(sparkContext,"time in omni codegen"),
+    "numInputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of input vecBatchs"),
+    "numOutputVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"),
+    "addInputTime" -> SQLMetrics.createTimingMetric(sparkContext, "time in omni addInput")
   ) ++ readMetrics ++ writeMetrics
 
-  override def output:Seq[Attribute] = {
+  override def output: Seq[Attribute] = {
     projectList.map(_.toAttribute)
   }
 
@@ -88,8 +88,8 @@ case class ColumnarTakeorderedAndProjectExec (
     throw new UnsupportedOperationException
   }
 
-  def buildCheck():Unit = {
-    genSortParam(child.output, sortorder)
+  def buildCheck(): Unit = {
+    genSortParam(child.output, sortOrder)
     val projectEqualChildOutput = projectList == child.output
     var omniInputTypes: Array[DataType] = null
     var omniExpressions: Array[String] = null
@@ -101,7 +101,7 @@ case class ColumnarTakeorderedAndProjectExec (
     }
   }
 
-  override def doExecuteColumnar():RDD[ColumnarBatch] = {
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val (sourceTypes, ascendings, nullFirsts, sortColsExp) = genSortParam(child.output, sortOrder)
 
     def computeTopN(iter: Iterator[ColumnarBatch], schema: StructType): Iterator[ColumnarBatch] = {
@@ -110,13 +110,13 @@ case class ColumnarTakeorderedAndProjectExec (
         sortColsExp, ascendings, nullFirsts, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
       val topNOperator = topNOperatorFactory.createOperator
       longMetric("omniCodegenTime") += NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
-      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
+      SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         topNOperator.close()
       })
       addAllAndGetIterator(topNOperator, iter, schema,
         longMetric("addInputTime"), longMetric("numInputVecBatchs"), longMetric("numInputRows"),
-        longMetric("getoutputTime"), longMetric("numOutputVecBatchs"), longMetric("numOutputRows"),
-        longMetric("outputDatasize"))
+        longMetric("getOutputTime"), longMetric("numOutputVecBatchs"), longMetric("numOutputRows"),
+        longMetric("outputDataSize"))
     }
 
     val localTopK: RDD[ColumnarBatch] = {
@@ -124,6 +124,7 @@ case class ColumnarTakeorderedAndProjectExec (
         computeTopN(iter, this.child.schema)
       }
     }
+
     val shuffled = new ShuffledColumnarRDD(
       ColumnarShuffleExchangeExec.prepareShuffleDependency(
         localTopK,
@@ -153,7 +154,7 @@ case class ColumnarTakeorderedAndProjectExec (
       getOutputTime = longMetric("getOutputTime")
     }
     shuffled.mapPartitions { iter =>
-      // TopN=omni-top-n+omni-project
+      // TopN = omni-top-n+omni-project
       val topN: Iterator[ColumnarBatch] = computeTopN(iter, this.child.schema)
       if (!projectEqualChildOutput) {
         dealPartitionData(null, null, addInputTime, omniCodegenTime,
@@ -168,10 +169,10 @@ case class ColumnarTakeorderedAndProjectExec (
 
   override def outputPartitioning: Partitioning = SinglePartition
 
-  override def simplestring(maxFields:Int): String = {
+  override def simpleString(maxFields:Int): String = {
     val orderByString = truncatedString(sortOrder, "[", ",", "]", maxFields)
     val outputString = truncatedString(output, "[", ",", "]", maxFields)
 
-    s"omniColumnarTakeOrderedAndProject(limit=$limit, orderBy=$orderByString, output=$outputstring)"
+    s"OmniColumnarTakeOrderedAndProject(limit=$limit, orderBy=$orderByString, output=$outputString)"
   }
 }

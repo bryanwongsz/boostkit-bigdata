@@ -6,8 +6,8 @@
 #define SPARK_THESTRAL_PLUGIN_BINARYLOCATION_H
 class VCLocation {
 public:
-    VCLocation(uint64_t vc_addr, uint32_t vc_len)
-            : vc_len(vc_len), vc_addr(vc_addr) {
+    VCLocation(uint64_t vc_addr, uint32_t vc_len, bool isnull)
+            : vc_len(vc_len), vc_addr(vc_addr), isnull(isnull) {
             }
     ~VCLocation() {
     }
@@ -19,9 +19,14 @@ public:
         return vc_addr;
     }
 
- public:
-     uint32_t vc_len;
-     uint64_t vc_addr;
+    bool get_is_null() {
+        return is_null();
+    }
+
+public:
+    uint32_t vc_len;
+    uint64_t vc_addr;
+    bool is_null;
 };
 
 class VCBatchInfo {

@@ -19,12 +19,6 @@
                 capacity_(capacity) {
         }
 
-        // Unsafe methods don't check existing size
-        void UnsafeAppend(const void* data, const int64_t length) {
-            memcpy((void*) (data_ + size_), data, static_cast<size_t>(length));
-            size_ += length;
-        }
-
  public:
         uint8_t * data_;
         int64_t size_;

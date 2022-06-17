@@ -17,7 +17,6 @@
 
 package com.huawei.boostkit.spark.util
 
-import java.math.BigInteger
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor._
@@ -53,7 +52,7 @@ object OmniAdaptorUtil {
             vector.getVec.slice(0, cb.numRows())
           }
         case _ =>
-          throw new RuntimeException("unsupport column vector!")
+          throw new UnsupportedOperationException("unsupport column vector!")
       }
       input(i) = omniVec
     }
@@ -171,7 +170,7 @@ object OmniAdaptorUtil {
           vec
         }
       case _ =>
-        throw new RuntimeException("unsupport column vector!")
+        throw new UnsupportedOperationException("unsupport column vector!")
     }
     vec
   }
@@ -200,6 +199,7 @@ object OmniAdaptorUtil {
         case _ => 1
       }
     }
+    checkOmniJsonWhiteList("", sortColsExp.asInstanceOf[Array[AnyRef]])
     (sourceTypes, ascendings, nullFirsts, sortColsExp)
   }
 
@@ -226,7 +226,7 @@ object OmniAdaptorUtil {
     new Iterator[ColumnarBatch] {
       override def hasNext: Boolean = {
         val startGetOp: Long = System.nanoTime()
-        var hasNext = results.hasNext
+        val hasNext = results.hasNext
         getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
         hasNext
       }
@@ -244,6 +244,13 @@ object OmniAdaptorUtil {
           outputDataSize += vecBatch.getVectors()(i).getRealNullBufCapacityInBytes
           outputDataSize += vecBatch.getVectors()(i).getRealOffsetBufCapacityInBytes
         }
+        val sourceLength = vecBatch.getVectorCount
+        var destLength = schema.fields.length
+        while (destLength < sourceLength) {
+          vecBatch.getVectors()(destLength).close() // vecBatch releasing redundant columns
+          destLength += 1
+        }
+
         // metrics
         val rowCnt: Int = vecBatch.getRowCount
         numOutputRows += rowCnt

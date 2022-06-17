@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit.NANOSECONDS
 import java.util.Optional
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor
+import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor.checkOmniJsonWhiteList
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
 import nova.hetu.omniruntime.`type`.DataType
 import nova.hetu.omniruntime.constants.JoinType.OMNI_JOIN_TYPE_INNER
@@ -60,6 +61,8 @@ class ColumnarSortMergeJoinExec(
 
   override def supportsColumnar: Boolean = true
 
+  override def supportCodegen: Boolean = false
+
   override def nodeName: String = "OmniColumnarSortMergeJoin"
 
   val SMJ_NEED_ADD_STREAM_TBL_DATA = 2
@@ -81,7 +84,9 @@ class ColumnarSortMergeJoinExec(
       SQLMetrics.createMetric(sparkContext, "time in omni buffered getOutput"),
     "numOutputVecBatchs" ->
       SQLMetrics.createMetric(sparkContext, "number of output vecBatchs"),
-    "numMergedVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of merged vecBatchs")
+    "numMergedVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of merged vecBatchs"),
+    "numStreamVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of streamed vecBatchs"),
+    "numBufferVecBatchs" -> SQLMetrics.createMetric(sparkContext, "number of buffered vecBatchs")
   )
 
   def buildCheck(): Unit = {
@@ -94,7 +99,7 @@ class ColumnarSortMergeJoinExec(
     left.output.zipWithIndex.foreach { case (attr, i) =>
       streamedTypes(i) = OmniExpressionAdaptor.sparkTypeToOmniType(attr.dataType, attr.metadata)
     }
-    leftKeys.map { x =>
+    val streamedKeyColsExp: Array[AnyRef] = leftKeys.map { x =>
       OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(x,
         OmniExpressionAdaptor.getExprIdMap(left.output.map(_.toAttribute)))
     }.toArray
@@ -103,15 +108,19 @@ class ColumnarSortMergeJoinExec(
     right.output.zipWithIndex.foreach { case (attr, i) =>
       bufferedTypes(i) = OmniExpressionAdaptor.sparkTypeToOmniType(attr.dataType, attr.metadata)
     }
-    rightKeys.map { x =>
+    val bufferedKeyColsExp: Array[AnyRef] = rightKeys.map { x =>
       OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(x,
         OmniExpressionAdaptor.getExprIdMap(right.output.map(_.toAttribute)))
     }.toArray
 
+    checkOmniJsonWhiteList("", streamedKeyColsExp)
+    checkOmniJsonWhiteList("", bufferedKeyColsExp)
+
     condition match {
       case Some(expr) =>
-        OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(expr,
+        val filterExpr: String = OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(expr,
           OmniExpressionAdaptor.getExprIdMap(output.map(_.toAttribute)))
+        checkOmniJsonWhiteList(filterExpr, new Array[AnyRef](0))
       case _ => null
     }
   }
@@ -125,6 +134,8 @@ class ColumnarSortMergeJoinExec(
     val bufferedAddInputTime = longMetric("bufferedAddInputTime")
     val bufferedCodegenTime = longMetric("bufferedCodegenTime")
     val getOutputTime = longMetric("getOutputTime")
+    val streamVecBatchs = longMetric("numStreamVecBatchs")
+    val bufferVecBatchs = longMetric("numBufferVecBatchs")
 
     if ("INNER" != joinType.sql) {
       throw new UnsupportedOperationException(s"Join-type[${joinType}] is not supported " +
@@ -176,6 +187,8 @@ class ColumnarSortMergeJoinExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
         streamedOp.close()
         bufferedOp.close()
+        bufferedOpFactory.close()
+        streamedOpFactory.close()
       })
 
       val resultSchema = this.schema
@@ -188,8 +201,20 @@ class ColumnarSortMergeJoinExec(
         var isBufferedFinished = false
         var results: java.util.Iterator[VecBatch] = null
 
+        def checkAndClose() : Unit = {
+            while(streamedIter.hasNext) {
+              streamVecBatchs += 1
+              streamedIter.next().close()
+            }
+            while(bufferedIter.hasNext) {
+              bufferVecBatchs += 1
+              bufferedIter.next().close()
+            }
+        }
+
         override def hasNext: Boolean = {
           if (isFinished) {
+            checkAndClose()
             return false
           }
           if (results != null && results.hasNext) {
@@ -204,7 +229,9 @@ class ColumnarSortMergeJoinExec(
             if (inputReturnCode == SMJ_NEED_ADD_STREAM_TBL_DATA) {
               val startBuildStreamedInput = System.nanoTime()
               if (!isStreamedFinished && streamedIter.hasNext) {
-                val inputVecBatch = transColBatchToVecBatch(streamedIter.next())
+                val batch = streamedIter.next()
+                streamVecBatchs += 1
+                val inputVecBatch = transColBatchToVecBatch(batch)
                 inputReturnCode = streamedOp.addInput(inputVecBatch)
               } else {
                 inputReturnCode = streamedOp.addInput(createEofVecBatch(streamedTypes))
@@ -215,7 +242,9 @@ class ColumnarSortMergeJoinExec(
             } else {
               val startBuildBufferedInput = System.nanoTime()
               if (!isBufferedFinished && bufferedIter.hasNext) {
-                val inputVecBatch = transColBatchToVecBatch(bufferedIter.next())
+                val batch = bufferedIter.next()
+                bufferVecBatchs += 1
+                val inputVecBatch = transColBatchToVecBatch(batch)
                 inputReturnCode = bufferedOp.addInput(inputVecBatch)
               } else {
                 inputReturnCode = bufferedOp.addInput(createEofVecBatch(bufferedTypes))
@@ -235,6 +264,7 @@ class ColumnarSortMergeJoinExec(
             } else {
               isFinished = true
               results = null
+              checkAndClose()
               return false
             }
           }
@@ -242,6 +272,7 @@ class ColumnarSortMergeJoinExec(
           if (inputReturnCode == SMJ_NO_RESULT) {
             isFinished = true
             results = null
+            checkAndClose()
             return false
           }
 

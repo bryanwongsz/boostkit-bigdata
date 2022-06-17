@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.dataSources.orc
+package org.apache.spark.sql.execution.datasources.orc
 
 import java.io.Serializable
 import java.net.URI

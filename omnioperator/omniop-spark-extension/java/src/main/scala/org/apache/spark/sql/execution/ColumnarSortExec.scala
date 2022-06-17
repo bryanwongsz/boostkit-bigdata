@@ -73,7 +73,7 @@ case class ColumnarSortExec(
     genSortParam(child.output, sortOrder)
   }
 
-  private[spark] val sortlocalDirs: Array[File] = generateLocalDirs(sparkContext.conf)
+  val sparkConfTmp = sparkContext.conf
 
   private def generateLocalDirs(conf: SparkConf): Array[File] = {
     Utils.getConfiguredLocalDirs(conf).flatMap { rootDir =>
@@ -97,17 +97,8 @@ case class ColumnarSortExec(
         dir = null
       }
     }
-
     dir.getCanonicalFile
   }
-
-  def getFile(sparkEnv: SparkEnv): File = {
-    val hash = Utils.nonNegativeHash(sparkEnv.executorId)
-    val dirId = hash % sortlocalDirs.length
-    sortlocalDirs(dirId)
-  }
-
-  val spillPathDir = getFile(SparkEnv.get).getCanonicalPath
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val omniCodegenTime = longMetric("omniCodegenTime")
@@ -120,7 +111,10 @@ case class ColumnarSortExec(
       val sortSpillRowThreshold = columnarConf.columnarSortSpillRowThreshold
       val sortSpillDirDiskReserveSize = columnarConf.columnarSortSpillDirDiskReserveSize
       val sortSpillEnable = columnarConf.enableSortSpill
-
+      val sortlocalDirs: Array[File] = generateLocalDirs(sparkConfTmp)
+      val hash = Utils.nonNegativeHash(SparkEnv.get.executorId)
+      val dirId = hash % sortlocalDirs.length
+      val spillPathDir = sortlocalDirs(dirId).getCanonicalPath
       val sparkSpillConf = new SparkSpillConfig(sortSpillEnable, spillPathDir,
         sortSpillDirDiskReserveSize, sortSpillRowThreshold)
       val startCodegen = System.nanoTime()

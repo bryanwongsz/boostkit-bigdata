@@ -25,6 +25,7 @@ import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 
 import scala.collection.mutable
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor
+import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor.checkOmniJsonWhiteList
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
 import nova.hetu.omniruntime.`type`.DataType
 import nova.hetu.omniruntime.constants.JoinType.OMNI_JOIN_TYPE_INNER
@@ -84,6 +85,8 @@ case class ColumnarBroadcastHashJoinExec(
   )
 
   override def supportsColumnar: Boolean = true
+
+  override def supportCodegen: Boolean = false
 
   override def nodeName: String = "OmniColumnarBroadcastHashJoin"
 
@@ -209,15 +212,19 @@ case class ColumnarBroadcastHashJoinExec(
     streamedOutput.zipWithIndex.foreach { case (attr, i) =>
       probeTypes(i) = OmniExpressionAdaptor.sparkTypeToOmniType(attr.dataType, attr.metadata)
     }
-    streamedKeys.map { x =>
+    val probeHashColsExp: Array[AnyRef] = streamedKeys.map { x =>
       OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(x,
         OmniExpressionAdaptor.getExprIdMap(streamedOutput.map(_.toAttribute)))
     }.toArray
 
+    checkOmniJsonWhiteList("", buildJoinColsExp)
+    checkOmniJsonWhiteList("", probeHashColsExp)
+
     condition match {
       case Some(expr) =>
-        Optional.of(OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(expr,
-          OmniExpressionAdaptor.getExprIdMap((streamedOutput ++ buildOutput).map(_.toAttribute))))
+        val filterExpr: String = OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(expr,
+          OmniExpressionAdaptor.getExprIdMap((streamedOutput ++ buildOutput).map(_.toAttribute)))
+        checkOmniJsonWhiteList(filterExpr, new Array[AnyRef](0))
       case _ => Optional.empty()
     }
   }
@@ -308,6 +315,8 @@ case class ColumnarBroadcastHashJoinExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
         buildOp.close()
         lookupOp.close()
+        buildOpFactory.close()
+        lookupOpFactory.close()
       })
 
       val resultSchema = this.schema

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.spark.sql.execution.datasources.orc
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -66,7 +65,7 @@ object OrcUtils extends Logging {
       val schema = Utils.tryWithResource(OrcFile.createReader(file, readerOptions)) { reader =>
         reader.getSchema
       }
-      if (schema.getFieldNames.size == 0) {
+      if (schema.getFieldNames.isEmpty) {
         None
       } else {
         Some(schema)

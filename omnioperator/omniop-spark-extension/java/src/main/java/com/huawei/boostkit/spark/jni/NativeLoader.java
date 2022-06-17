@@ -36,26 +36,27 @@ public class NativeLoader {
     }
 
     private NativeLoader() {
+        File tempFile = null; 
         try {
-            String nativeLibraryPath = File.separator +
-                    System.mapLibraryName(LIBRARY_NAME);
-            InputStream in = NativeLoader.class.getResourceAsStream(nativeLibraryPath);
-            File tempFile = File.createTempFile(LIBRARY_NAME, ".so");
-            FileOutputStream fos = new FileOutputStream(tempFile);
-            int i;
-            byte[] buf = new byte[BUFFER_SIZE];
-            while ((i = in.read(buf)) != -1) {
-                fos.write(buf, 0, i);
+            String nativeLibraryPath = File.separator + System.mapLibraryName(LIBRARY_NAME);
+            tempFile = File.createTempFile(LIBRARY_NAME, ".so");
+            try (InputStream in = NativeLoader.class.getResourceAsStream(nativeLibraryPath);
+                FileOutputStream fos = new FileOutputStream(tempFile)) {
+                int i;
+                byte[] buf = new byte[BUFFER_SIZE];
+                while ((i = in.read(buf)) != -1) {
+                    fos.write(buf, 0, i);
+                }
+                System.load(tempFile.getCanonicalPath());
+                NativeLog.getInstance();
             }
-            in.close();
-            fos.close();
-            System.load(tempFile.getAbsolutePath());
-            NativeLog.getInstance();
-            tempFile.deleteOnExit();
         } catch (IOException e) {
             LOG.warn("fail to load library from Jar!errmsg:{}", e.getMessage());
             System.loadLibrary(LIBRARY_NAME);
+        } finally {
+            if (tempFile != null) {
+                tempFile.deleteOnExit();
+            }
         }
     }
-
 }

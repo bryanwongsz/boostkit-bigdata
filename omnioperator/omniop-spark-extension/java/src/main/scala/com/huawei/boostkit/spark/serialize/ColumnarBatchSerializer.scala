@@ -21,7 +21,7 @@ import com.google.common.io.ByteStreams
 import com.huawei.boostkit.spark.ColumnarPluginConfig
 import com.huawei.boostkit.spark.compress.{CompressionUtil, DecompressionStream}
 import java.io.{BufferedInputStream, DataInputStream, EOFException, InputStream, OutputStream}
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}

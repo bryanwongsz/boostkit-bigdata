@@ -17,7 +17,10 @@
 
 package org.apache.spark.sql.execution
 
+import nova.hetu.omniruntime.vector.Vec
+
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -300,29 +303,28 @@ case class OmniColumnarToRowExec(child: SparkPlan) extends ColumnarToRowTransiti
     val localOutput = this.output
     child.executeColumnar().mapPartitionsInternal { batches =>
       val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-      batches.flatMap { batch =>
+      val vecsTmp = new ListBuffer[Vec]
+
+      val batchIter = batches.flatMap { batch =>
+        // store vec since tablescan reuse batch
+        for (i <- 0 until batch.numCols()) {
+          batch.column(i) match {
+            case vector: OmniColumnVector =>
+              vecsTmp.append(vector.getVec)
+            case _ =>
+          }
+        }
         numInputBatches += 1
         numOutputRows += batch.numRows()
-        val iter = batch.rowIterator().asScala.map(toUnsafe)
-        new Iterator[InternalRow] {
-          var closed = false
-          override def hasNext: Boolean = {
-            val has = iter.hasNext
-            if (!has && !closed) {
-              for (i <- 0 until batch.numCols()) {
-                // skip OnHeapColumnVector
-                val col = batch.column(i)
-                if (col.isInstanceOf[OmniColumnVector]) {
-                  col.close()
-                }
-              }
-              closed = true
-            }
-            has
-          }
-          override def next(): InternalRow = iter.next()
+        batch.rowIterator().asScala.map(toUnsafe)
+      }
+
+      SparkMemoryUtils.addLeakSafeTaskCompletionListener { _ =>
+        vecsTmp.foreach {vec =>
+          vec.close()
         }
       }
+      batchIter
     }
   }
 }

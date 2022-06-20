@@ -20,14 +20,11 @@
 
 using namespace omniruntime::vec;
 
-static int32_t offsetOne = 1;
-
 int32_t BytesGen(uint64_t offsetsAddr, uint64_t nullsAddr, uint64_t valuesAddr, VCBatchInfo& vcb)
 {
     int32_t* offsets = reinterpret_cast<int32_t *>(offsetsAddr);
     char *nulls = reinterpret_cast<char *>(nullsAddr);
     char* values = reinterpret_cast<char *>(valuesAddr);
-    int valuesTotalLen = vcb.getVcbTotalLen();
     std::vector<VCLocation> &lst = vcb.getVcList();
     int itemsTotalLen = lst.size();
     int valueTotalLen = 0;
@@ -39,10 +36,12 @@ int32_t BytesGen(uint64_t offsetsAddr, uint64_t nullsAddr, uint64_t valuesAddr, 
         } else {
             offsets[i] = offsets[i -1] + lst[i - 1].get_vc_len();
         }
-        if (len == 0) {
-            nulls[i] = offsetOne;
+        if (lst[i].get_is_null()) {
+            nulls[i] = 1;
         } else {
             nulls[i] = 0;
+        }
+        if (len != 0) {
             memcpy((char *) (values + offsets[i]), addr, len);
             valueTotalLen += len;
         }
@@ -88,6 +87,9 @@ void ReleaseVectorBatch(omniruntime::vec::VectorBatch& vb)
         vectorBatchAddresses.insert(vb.GetVector(vecIndex));
     }
     for (Vector * tmpAddress : vectorBatchAddresses) {
+        if (nullptr == tmpAddress) {
+            throw std::runtime_error("delete nullptr error for release vectorBatch");
+        }
         delete tmpAddress;
     }
     vectorBatchAddresses.clear();

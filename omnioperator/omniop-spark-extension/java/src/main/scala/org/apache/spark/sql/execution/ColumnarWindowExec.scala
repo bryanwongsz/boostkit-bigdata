@@ -18,25 +18,26 @@
 package org.apache.spark.sql.execution
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
+
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
 import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor._
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
 import nova.hetu.omniruntime.`type`.DataType
-import nova.hetu.omniruntime.constants.FunctionType
+import nova.hetu.omniruntime.constants.{FunctionType, OmniWindowFrameBoundType, OmniWindowFrameType}
 import nova.hetu.omniruntime.operator.config.OperatorConfig
 import nova.hetu.omniruntime.operator.window.OmniWindowWithExprOperatorFactory
 import nova.hetu.omniruntime.vector.VecBatch
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Average, Count, Max, Min, Sum}
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.ColumnarProjection.dealPartitionData
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.util.SparkMemoryUtils
 import org.apache.spark.sql.execution.vectorized.OmniColumnVector
-import org.apache.spark.sql.execution.window.{WindowExec, WindowExecBase}
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.window.WindowExecBase
+import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
@@ -80,15 +81,65 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
+  def checkAggFunInOutDataType(funcInDataType: org.apache.spark.sql.types.DataType, funcOutDataType: org.apache.spark.sql.types.DataType): Unit = {
+     //for decimal, only support decimal64 to decimal128 output
+     if(funcInDataType.isInstanceOf[DecimalType] && funcOutDataType.isInstanceOf[DecimalType]) {
+        if (!DecimalType.is64BitDecimalType(funcOutDataType.asInstanceOf[DecimalType]))
+          throw new UnsupportedOperationException(s"output only support decimal128 type, inDataType:${funcInDataType} outDataType:${funcOutDataType}" )
+     }
+  }
+
+  def getWindowFrameParam(frame: SpecifiedWindowFrame): (OmniWindowFrameType,
+    OmniWindowFrameBoundType, OmniWindowFrameBoundType, Int, Int) = {
+    var windowFrameStartChannel = -1
+    var windowFrameEndChannel = -1
+    val windowFrameType = frame.frameType match {
+      case RangeFrame =>
+        OmniWindowFrameType.OMNI_FRAME_TYPE_RANGE
+      case RowFrame =>
+        OmniWindowFrameType.OMNI_FRAME_TYPE_ROWS
+    }
+
+    val windowFrameStartType = frame.lower match {
+      case UnboundedPreceding =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_UNBOUNDED_PRECEDING
+      case UnboundedFollowing =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_UNBOUNDED_FOLLOWING
+      case CurrentRow =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_CURRENT_ROW
+      case literal: Literal =>
+        windowFrameStartChannel = literal.value.toString.toInt
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_PRECEDING
+    }
+
+    val windowFrameEndType = frame.upper match {
+      case UnboundedPreceding =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_UNBOUNDED_PRECEDING
+      case UnboundedFollowing =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_UNBOUNDED_FOLLOWING
+      case CurrentRow =>
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_CURRENT_ROW
+      case literal: Literal =>
+        windowFrameEndChannel = literal.value.toString.toInt
+        OmniWindowFrameBoundType.OMNI_FRAME_BOUND_FOLLOWING
+    }
+    (windowFrameType, windowFrameStartType, windowFrameEndType,
+      windowFrameStartChannel, windowFrameEndChannel)
+  }
+
   def buildCheck(): Unit = {
     val inputColSize = child.outputSet.size
-    val sourceTypes = new Array[DataType](inputColSize) // 2,2
-
-    val windowFunType = new Array[FunctionType](windowExpression.size)
-    var windowArgKeys = new Array[String](0) // ?
-    val windowFunRetType = new Array[DataType](windowExpression.size) // ?
+    val sourceTypes = new Array[DataType](inputColSize)
+    val winExpressions: Seq[Expression] = windowFrameExpressionFactoryPairs.flatMap(_._1)
+    val windowFunType = new Array[FunctionType](winExpressions.size)
+    var windowArgKeys = new Array[AnyRef](winExpressions.size)
+    val windowFunRetType = new Array[DataType](winExpressions.size)
     val omniAttrExpsIdMap = getExprIdMap(child.output)
-
+    val windowFrameTypes = new Array[OmniWindowFrameType](winExpressions.size)
+    val windowFrameStartTypes = new Array[OmniWindowFrameBoundType](winExpressions.size)
+    val winddowFrameStartChannels = new Array[Int](winExpressions.size)
+    val windowFrameEndTypes = new Array[OmniWindowFrameBoundType](winExpressions.size)
+    val winddowFrameEndChannels = new Array[Int](winExpressions.size)
     var attrMap: Map[String, Int] = Map()
     val inputIter = child.outputSet.toIterator
     var i = 0
@@ -99,36 +150,63 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       i += 1
     }
 
-    windowExpression.foreach { x =>
+    var windowExpressionWithProject = false
+    winExpressions.zipWithIndex.foreach { case (x, index) =>
       x.foreach {
         case e@WindowExpression(function, spec) =>
-          windowFunRetType(0) = sparkTypeToOmniType(function.dataType)
+          if (spec.frameSpecification.isInstanceOf[SpecifiedWindowFrame]) {
+            val winFram = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            if (winFram.lower != UnboundedPreceding && winFram.lower != CurrentRow) {
+              throw new UnsupportedOperationException(s"Unsupported Specified frame_start: ${winFram.lower}")
+            }
+            if (winFram.upper != UnboundedFollowing && winFram.upper != CurrentRow) {
+              throw new UnsupportedOperationException(s"Unsupported Specified frame_end: ${winFram.upper}")
+            }
+          }
+          windowFunRetType(index) = sparkTypeToOmniType(function.dataType)
+          val frame = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+          val winFrameParam = getWindowFrameParam(frame)
+          windowFrameTypes(index) = winFrameParam._1
+          windowFrameStartTypes(index) = winFrameParam._2
+          windowFrameEndTypes(index) = winFrameParam._3
+          winddowFrameStartChannels(index) = winFrameParam._4
+          winddowFrameEndChannels(index) = winFrameParam._5
           function match {
             // AggregateWindowFunction
             case winfunc: WindowFunction =>
-              windowFunType(0) = toOmniWindowFunType(winfunc)
+              windowFunType(index) = toOmniWindowFunType(winfunc)
               windowArgKeys = winfunc.children.map(
                 exp => rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
             // AggregateExpression
             case agg@AggregateExpression(aggFunc, _, _, _, _) =>
-              windowFunType(0) = toOmniAggFunType(agg)
+              windowFunType(index) = toOmniAggFunType(agg)
               windowArgKeys = aggFunc.children.map(
-                exp => rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
-            case _ => throw new RuntimeException(s"Unsupported window function: ${function}")
-
-          }
-          if (spec.frameSpecification.isInstanceOf[SpecifiedWindowFrame]) {
-            val winFram = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            if (winFram.lower != UnboundedPreceding) {
-              throw new RuntimeException(s"Unsupported Specified frame_start: ${winFram.lower}")
-            }
-            else if (winFram.upper != UnboundedFollowing && winFram.upper != CurrentRow) {
-              throw new RuntimeException(s"Unsupported Specified frame_end: ${winFram.upper}")
-            }
+                exp => {
+                  checkAggFunInOutDataType(function.dataType, exp.dataType)
+                  rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)
+                }).toArray
+            case _ => throw new UnsupportedOperationException(s"Unsupported window function: ${function}")
           }
         case _ =>
+          windowExpressionWithProject = true
       }
     }
+
+    val winExpToReferences = winExpressions.zipWithIndex.map { case (e, i) =>
+      // Results of window expressions will be on the right side of child's output
+      AttributeReference(String.valueOf(child.output.size + i), e.dataType, e.nullable)().toAttribute
+    }
+    val winExpToReferencesMap = winExpressions.zip(winExpToReferences).toMap
+    val patchedWindowExpression = windowExpression.map(_.transform(winExpToReferencesMap))
+    if (windowExpressionWithProject) {
+      val finalOut = child.output ++ winExpToReferences
+      val projectInputTypes = finalOut.map(
+        exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
+      val projectExpressions: Array[AnyRef] = (child.output ++ patchedWindowExpression).map(
+        exp => rewriteToOmniJsonExpressionLiteral(exp, getExprIdMap(finalOut))).toArray
+      checkOmniJsonWhiteList("", projectExpressions)
+    }
+    checkOmniJsonWhiteList("", windowArgKeys)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -141,18 +219,22 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
     val getOutputTime = longMetric("getOutputTime")
 
     val inputColSize = child.outputSet.size
-    val sourceTypes = new Array[DataType](inputColSize) // 2,2
-    val sortCols = new Array[Int](orderSpec.size) // 0, 1
-    val ascendings = new Array[Int](orderSpec.size) // 1
-    val nullFirsts = new Array[Int](orderSpec.size) // 0, 0
-
-    val windowFunType = new Array[FunctionType](windowExpression.size)
+    val sourceTypes = new Array[DataType](inputColSize)
+    val sortCols = new Array[Int](orderSpec.size)
+    val ascendings = new Array[Int](orderSpec.size)
+    val nullFirsts = new Array[Int](orderSpec.size)
+    val winExpressions: Seq[Expression] = windowFrameExpressionFactoryPairs.flatMap(_._1)
+    val windowFunType = new Array[FunctionType](winExpressions.size)
     val omminPartitionChannels = new Array[Int](partitionSpec.size)
-    val preGroupedChannels = new Array[Int](0) // ?
-    var windowArgKeys = new Array[String](0) // ?
-    var windowArgKeysForSkip = new Array[String](0) // ?
-    val windowFunRetType = new Array[DataType](windowExpression.size) // ?
+    val preGroupedChannels = new Array[Int](winExpressions.size)
+    var windowArgKeys = new Array[String](winExpressions.size)
+    val windowFunRetType = new Array[DataType](winExpressions.size)
     val omniAttrExpsIdMap = getExprIdMap(child.output)
+    val windowFrameTypes = new Array[OmniWindowFrameType](winExpressions.size)
+    val windowFrameStartTypes = new Array[OmniWindowFrameBoundType](winExpressions.size)
+    val windowFrameStartChannels = new Array[Int](winExpressions.size)
+    val windowFrameEndTypes = new Array[OmniWindowFrameBoundType](winExpressions.size)
+    val windowFrameEndChannels = new Array[Int](winExpressions.size)
 
     var attrMap: Map[String, Int] = Map()
     val inputIter = child.outputSet.toIterator
@@ -179,7 +261,7 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
           case _ => 1
         }
       } else {
-        throw new RuntimeException(s"Unsupported sort col not in inputset: ${sortAttr.nodeName}")
+        throw new UnsupportedOperationException(s"Unsupported sort col not in inputset: ${sortAttr.nodeName}")
       }
       i += 1
     }
@@ -191,7 +273,7 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       if (attrMap.contains(outputAttr.name)) {
         outputCols(i) = attrMap.get(outputAttr.name).get
       } else {
-        throw new RuntimeException(s"output col not in input cols: ${outputAttr.name}")
+        throw new UnsupportedOperationException(s"output col not in input cols: ${outputAttr.name}")
       }
       i += 1
     }
@@ -202,52 +284,50 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       if (attrMap.contains(partitionAttr.asInstanceOf[AttributeReference].name)) {
         omminPartitionChannels(i) = attrMap(partitionAttr.asInstanceOf[AttributeReference].name)
       } else {
-        throw new RuntimeException(s"output col not in input cols: ${partitionAttr}")
+        throw new UnsupportedOperationException(s"output col not in input cols: ${partitionAttr}")
       }
       i += 1
     }
 
     var windowExpressionWithProject = false
     i = 0
-    windowExpression.foreach { x =>
+    winExpressions.zipWithIndex.foreach { case (x, index) =>
       x.foreach {
         case e@WindowExpression(function, spec) =>
-          windowFunRetType(0) = sparkTypeToOmniType(function.dataType)
+          if (spec.frameSpecification.isInstanceOf[SpecifiedWindowFrame]) {
+            val winFram = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+            if (winFram.lower != UnboundedPreceding && winFram.lower != CurrentRow) {
+              throw new UnsupportedOperationException(s"Unsupported Specified frame_start: ${winFram.lower}")
+            }
+            if (winFram.upper != UnboundedFollowing && winFram.upper != CurrentRow) {
+              throw new UnsupportedOperationException(s"Unsupported Specified frame_end: ${winFram.upper}")
+            }
+          }
+          windowFunRetType(index) = sparkTypeToOmniType(function.dataType)
+          val frame = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
+          val winFrameParam = getWindowFrameParam(frame)
+          windowFrameTypes(index) = winFrameParam._1
+          windowFrameStartTypes(index) = winFrameParam._2
+          windowFrameEndTypes(index) = winFrameParam._3
+          windowFrameStartChannels(index) = winFrameParam._4
+          windowFrameEndChannels(index) = winFrameParam._5
           function match {
             // AggregateWindowFunction
             case winfunc: WindowFunction =>
-              windowFunType(0) = toOmniWindowFunType(winfunc)
-              windowArgKeys = winfunc.children.map(
-                exp => rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
-              windowArgKeysForSkip = winfunc.children.map(
-                exp => rewriteToOmniExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
+              windowFunType(index) = toOmniWindowFunType(winfunc)
+              windowArgKeys(index) = null
             // AggregateExpression
             case agg@AggregateExpression(aggFunc, _, _, _, _) =>
-              windowFunType(0) = toOmniAggFunType(agg)
-              windowArgKeys = aggFunc.children.map(
-                exp => rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
-              windowArgKeysForSkip = aggFunc.children.map(
-                exp => rewriteToOmniExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
-            case _ => throw new RuntimeException(s"Unsupported window function: ${function}")
-
-          }
-          if (spec.frameSpecification.isInstanceOf[SpecifiedWindowFrame]) {
-            var winFram = spec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            if (winFram.lower != UnboundedPreceding) {
-              throw new RuntimeException(s"Unsupported Specified frame_start: ${winFram.lower}")
-            }
-            else if (winFram.upper != UnboundedFollowing && winFram.upper != CurrentRow) {
-              throw new RuntimeException(s"Unsupported Specified frame_end: ${winFram.upper}")
-            }
+              windowFunType(index) = toOmniAggFunType(agg)
+              windowArgKeys(index) = rewriteToOmniJsonExpressionLiteral(aggFunc.children.head,
+                omniAttrExpsIdMap)
+            case _ => throw new UnsupportedOperationException(s"Unsupported window function: ${function}")
           }
         case _ =>
           windowExpressionWithProject = true
       }
     }
-    val skipColumns = windowArgKeysForSkip.count(x => !x.startsWith("#"))
-
-
-    val winExpressions: Seq[Expression] = windowFrameExpressionFactoryPairs.flatMap(_._1)
+    windowArgKeys = windowArgKeys.filter(key => key != null)
 
     val winExpToReferences = winExpressions.zipWithIndex.map { case (e, i) =>
       // Results of window expressions will be on the right side of child's output
@@ -261,7 +341,9 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       val startCodegen = System.nanoTime()
       val windowOperatorFactory = new OmniWindowWithExprOperatorFactory(sourceTypes, outputCols,
         windowFunType, omminPartitionChannels, preGroupedChannels, sortCols, ascendings,
-        nullFirsts, 0, 10000, windowArgKeys, windowFunRetType, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
+        nullFirsts, 0, 10000, windowArgKeys, windowFunRetType,
+        windowFrameTypes, windowFrameStartTypes, windowFrameStartChannels, windowFrameEndTypes,
+        windowFrameEndChannels, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
       val windowOperator = windowOperatorFactory.createOperator
       omniCodegenTime += NANOSECONDS.toMillis(System.nanoTime() - startCodegen)
 
@@ -286,16 +368,15 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       })
 
       var windowResultSchema = this.schema
-      val skipWindowRstExpVecCnt = skipColumns
       if (windowExpressionWithProjectConstant) {
         val omnifinalOutSchema = child.output ++ winExpToReferences.map(_.toAttribute)
         windowResultSchema = StructType.fromAttributes(omnifinalOutSchema)
       }
-      val sourceSize = sourceTypes.length
-      var omniWindowResultIter = new Iterator[ColumnarBatch] {
+      val outputColSize = outputCols.length
+      val omniWindowResultIter = new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
           val startGetOp: Long = System.nanoTime()
-          var hasNext = results.hasNext
+          val hasNext = results.hasNext
           getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
           hasNext
         }
@@ -306,13 +387,18 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
           getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
           val vectors: Seq[OmniColumnVector] = OmniColumnVector.allocateColumns(
             vecBatch.getRowCount, windowResultSchema, false)
+          val offset = vecBatch.getVectors.length - vectors.size
           vectors.zipWithIndex.foreach { case (vector, i) =>
             vector.reset()
-            if (i <= sourceSize - 1) {
+            if (i <= outputColSize - 1) {
               vector.setVec(vecBatch.getVectors()(i))
             } else {
-              vector.setVec(vecBatch.getVectors()(i + skipWindowRstExpVecCnt))
+              vector.setVec(vecBatch.getVectors()(i + offset))
             }
+          }
+          // release skip columnns memory
+          for (i <- outputColSize until outputColSize + offset) {
+            vecBatch.getVectors()(i).close()
           }
           numOutputRows += vecBatch.getRowCount
           numOutputVecBatchs += 1

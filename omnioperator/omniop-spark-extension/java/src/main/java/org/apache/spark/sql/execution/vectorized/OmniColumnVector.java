@@ -1,5 +1,19 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+ * Copyright (C) 2021-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.spark.sql.execution.vectorized;
@@ -11,6 +25,7 @@ import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -177,12 +192,12 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public boolean hasNull() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("hasNull is not supported");
     }
 
     @Override
     public int numNulls() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("numNulls is not supported");
     }
 
     @Override
@@ -289,7 +304,8 @@ public class OmniColumnVector extends WritableColumnVector {
         } else if (type instanceof DateType) {
             return intDataVec.isNull(rowId);
         } else {
-            throw new RuntimeException("unknown type for " + rowId);
+
+            throw new UnsupportedOperationException("isNullAt is not supported for type:" + type);
         }
     }
 
@@ -388,7 +404,7 @@ public class OmniColumnVector extends WritableColumnVector {
             } else if (type instanceof ByteType) {
                 array[i] = charsTypeDataVec.get(rowId + i)[0];
             } else {
-                throw new RuntimeException("Unsupported putShorts");
+                throw new UnsupportedOperationException("getBytes is not supported for type:" + type);
             }
         }
         return array;
@@ -431,7 +447,7 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public void putShorts(int rowId, int count, byte[] src, int srcIndex) {
-        throw new RuntimeException("Unsupported putShorts");
+        throw new UnsupportedOperationException("putShorts is not supported");
     }
 
     @Override
@@ -439,7 +455,7 @@ public class OmniColumnVector extends WritableColumnVector {
         if (dictionary != null) {
             return (short) dictionary.decodeToInt(dictionaryIds.getDictId(rowId));
         } else if (dictionaryData != null) {
-            throw new UnsupportedOperationException("Unsupported to get short from dictionary vector");
+            throw new UnsupportedOperationException("getShort is not supported for dictionary vector");
         } else {
             return shortDataVec.get(rowId);
         }
@@ -478,7 +494,7 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public void putInts(int rowId, int count, byte[] src, int srcIndex) {
-        throw new RuntimeException("Unsupported putInts");
+        throw new UnsupportedOperationException("putInts is not supported");
     }
 
     @Override
@@ -546,7 +562,7 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public void putLongs(int rowId, int count, byte[] src, int srcIndex) {
-        throw new RuntimeException("Unsupported putLongs");
+        throw new UnsupportedOperationException("putLongs is not supported");
     }
 
     @Override
@@ -587,37 +603,37 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public void putFloat(int rowId, float value) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("putFloat is not supported");
     }
 
     @Override
     public void putFloats(int rowId, int count, float value) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("putFloats is not supported");
     }
 
     @Override
     public void putFloats(int rowId, int count, float[] src, int srcIndex) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("putFloats is not supported");
     }
 
     @Override
     public void putFloats(int rowId, int count, byte[] src, int srcIndex) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("putFloats is not supported");
     }
 
     @Override
     public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("putFloatsLittleEndian is not supported");
     }
 
     @Override
     public float getFloat(int rowId) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("getFloat is not supported");
     }
 
     @Override
     public float[] getFloats(int rowId, int count) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("getFloats is not supported");
     }
 
     //
@@ -638,12 +654,12 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public void putDoubles(int rowId, int count, double[] src, int srcIndex) {
-        throw new RuntimeException("Unsupported putDoubles");
+        throw new UnsupportedOperationException("putDoubles is not supported");
     }
 
     @Override
     public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {
-        throw new RuntimeException("Unsupported putDoubles");
+        throw new UnsupportedOperationException("putDoubles is not supported");
     }
 
     @Override
@@ -685,17 +701,17 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public int getArrayLength(int rowId) {
-        throw new RuntimeException("Unsupported getArrayLength");
+        throw new UnsupportedOperationException("getArrayLength is not supported");
     }
 
     @Override
     public int getArrayOffset(int rowId) {
-        throw new RuntimeException("Unsupported getArrayOffset");
+        throw new UnsupportedOperationException("getArrayOffset is not supported");
     }
 
     @Override
     public void putArray(int rowId, int offset, int length) {
-        throw new RuntimeException("Unsupported putArray");
+        throw new UnsupportedOperationException("putArray is not supported");
     }
 
     //
@@ -704,7 +720,7 @@ public class OmniColumnVector extends WritableColumnVector {
 
     @Override
     public int putByteArray(int rowId, byte[] value, int offset, int length) {
-        throw new RuntimeException("Unsupported putByteArray");
+        throw new UnsupportedOperationException("putByteArray is not supported");
     }
 
     /**
@@ -719,7 +735,7 @@ public class OmniColumnVector extends WritableColumnVector {
         if (value.precision() <= Decimal.MAX_LONG_DIGITS()) {
             longDataVec.set(elementsAppended, value.toUnscaledLong());
         } else {
-            decimal128DataVec.setBigInteger(elementsAppended, value.toJavaBigInteger());
+            decimal128DataVec.setBigInteger(elementsAppended, value.toJavaBigDecimal().unscaledValue());
         }
         elementsAppended++;
         return result;
@@ -730,7 +746,7 @@ public class OmniColumnVector extends WritableColumnVector {
         if (precision <= Decimal.MAX_LONG_DIGITS()) {
             longDataVec.set(rowId, value.toUnscaledLong());
         } else {
-            decimal128DataVec.setBigInteger(rowId, value.toJavaBigInteger());
+            decimal128DataVec.setBigInteger(rowId, value.toJavaBigDecimal().unscaledValue());
         }
     }
 
@@ -740,7 +756,13 @@ public class OmniColumnVector extends WritableColumnVector {
         if (precision <= Decimal.MAX_LONG_DIGITS()) {
             return Decimal.apply(getLong(rowId), precision, scale);
         } else {
-            return Decimal.apply(new BigDecimal(decimal128DataVec.getBigInteger(rowId), scale), precision, scale);
+            BigInteger value;
+            if (dictionaryData != null) {
+                value = Decimal128Vec.getDecimal(dictionaryData.getDecimal128(rowId));
+            } else {
+                value = decimal128DataVec.getBigInteger(rowId);
+            }
+            return Decimal.apply(new BigDecimal(value, scale), precision, scale);
         }
     }
 
@@ -769,7 +791,7 @@ public class OmniColumnVector extends WritableColumnVector {
         } else if (type instanceof LongType) {
             longDataVec = new LongVec(newCapacity);
         } else if (type instanceof FloatType) {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException("reserveInternal is not supported for type:" + type);
         } else if (type instanceof DoubleType) {
             doubleDataVec = new DoubleVec(newCapacity);
         } else if (type instanceof StringType) {
@@ -778,7 +800,7 @@ public class OmniColumnVector extends WritableColumnVector {
         } else if (type instanceof DateType) {
             intDataVec = new IntVec(newCapacity);
         } else {
-            throw new RuntimeException("Unhandled " + type);
+            throw new UnsupportedOperationException("reserveInternal is not supported for type:" + type);
         }
         capacity = newCapacity;
     }

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef SPARK_COMPRESSION_HH
 #define SPARK_COMPRESSION_HH
 

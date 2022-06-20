@@ -152,7 +152,11 @@ class ColumnarPluginConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.sql.columnar.maxRowCount", "20000").toInt
 
   val enableJit: Boolean = conf.getConfString("spark.omni.sql.columnar.jit", "false").toBoolean
+
+  val enableDecimalCheck : Boolean = conf.getConfString("spark.omni.sql.decimal.constraint.check", "true").toBoolean
 }
+
+
 object ColumnarPluginConfig {
   var ins: ColumnarPluginConfig = null
 

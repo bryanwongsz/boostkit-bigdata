@@ -21,13 +21,14 @@ import com.huawei.boostkit.spark.ColumnarPluginConfig
 import com.huawei.boostkit.spark.jni.SparkJniWrapper
 import com.huawei.boostkit.spark.vectorized.SplitResult
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.transColBatchToOmniVecs
-import nova.hetu.omniruntime.vector.{Vec, VecBatch}
+import nova.hetu.omniruntime.vector.VecBatch
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.sql.execution.vectorized.OmniColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
+
+import java.io.IOException
 
 class ColumnarShuffleWriter[K, V](
     shuffleBlockResolver: IndexShuffleBlockResolver,
@@ -66,6 +67,7 @@ class ColumnarShuffleWriter[K, V](
 
   private var partitionLengths: Array[Long] = _
 
+  @throws[IOException]
   override def write(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)

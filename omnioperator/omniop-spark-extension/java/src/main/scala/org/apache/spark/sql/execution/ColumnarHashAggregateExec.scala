@@ -25,8 +25,7 @@ import nova.hetu.omniruntime.`type`.DataType
 import nova.hetu.omniruntime.constants.FunctionType
 import nova.hetu.omniruntime.operator.aggregator.OmniHashAggregationWithExprOperatorFactory
 import nova.hetu.omniruntime.operator.config.OperatorConfig
-import nova.hetu.omniruntime.operator.project.OmniProjectOperatorFactory
-import nova.hetu.omniruntime.vector.{Vec, VecBatch}
+import nova.hetu.omniruntime.vector.VecBatch
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -35,7 +34,6 @@ import org.apache.spark.sql.execution.ColumnarProjection.dealPartitionData
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.util.SparkMemoryUtils
-import org.apache.spark.sql.execution.util.SparkMemoryUtils.addLeakSafeTaskCompletionListener
 import org.apache.spark.sql.execution.vectorized.OmniColumnVector
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -70,7 +68,7 @@ case class ColumnarHashAggregateExec(
 
   def buildCheck(): Unit = {
     val attrExpsIdMap = getExprIdMap(child.output)
-    val omniGroupByChanel = groupingExpressions.map(
+    val omniGroupByChanel: Array[AnyRef] = groupingExpressions.map(
       exp => rewriteToOmniJsonExpressionLiteral(exp, attrExpsIdMap)).toArray
 
     var omniInputRaw = false
@@ -78,26 +76,26 @@ case class ColumnarHashAggregateExec(
     val omniAggTypes = new Array[DataType](aggregateExpressions.size)
     val omniAggFunctionTypes = new Array[FunctionType](aggregateExpressions.size)
     val omniAggOutputTypes = new Array[DataType](aggregateExpressions.size)
-    val omniAggChannels = new Array[String](aggregateExpressions.size)
+    val omniAggChannels = new Array[AnyRef](aggregateExpressions.size)
     var index = 0
     for (exp <- aggregateExpressions) {
       if (exp.filter.isDefined) {
         throw new UnsupportedOperationException("Unsupported filter in AggregateExpression")
       }
       if (exp.isDistinct) {
-        throw new RuntimeException(s"Unsupported aggregate expression with distinct flag")
+        throw new UnsupportedOperationException(s"Unsupported aggregate expression with distinct flag")
       }
       if (exp.mode == Final) {
         exp.aggregateFunction match {
           case Sum(_) | Min(_) | Max(_) | Count(_) =>
             val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
             omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType, aggExp.metadata)
-            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp, true)
             omniAggOutputTypes(index) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression: $exp")
+          case _ => throw new UnsupportedOperationException(s"Unsupported aggregate aggregateFunction: $exp")
         }
       } else if (exp.mode == Partial) {
         omniInputRaw = true
@@ -106,15 +104,15 @@ case class ColumnarHashAggregateExec(
           case Sum(_) | Min(_) | Max(_) | Count(_) =>
             val aggExp = exp.aggregateFunction.children.head
             omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType)
-            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp, true)
             omniAggOutputTypes(index) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression: $exp")
+          case _ => throw new UnsupportedOperationException(s"Unsupported aggregate aggregateFunction: $exp")
         }
       } else {
-        throw new RuntimeException(s"Unsupported aggregate mode: $exp.mode")
+        throw new UnsupportedOperationException(s"Unsupported aggregate mode: $exp.mode")
       }
       index += 1
     }
@@ -128,13 +126,17 @@ case class ColumnarHashAggregateExec(
       i += 1
     }
 
+    checkOmniJsonWhiteList("", omniAggChannels)
+    checkOmniJsonWhiteList("", omniGroupByChanel)
+
     // check for final project
     if (!omniOutputPartial) {
       val finalOut = groupingExpressions.map(_.toAttribute) ++ aggregateAttributes
       val projectInputTypes = finalOut.map(
         exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
-      val projectExpressions = resultExpressions.map(
+      val projectExpressions: Array[AnyRef] = resultExpressions.map(
         exp => rewriteToOmniJsonExpressionLiteral(exp, getExprIdMap(finalOut))).toArray
+      checkOmniJsonWhiteList("", projectExpressions)
     }
   }
 
@@ -163,19 +165,19 @@ case class ColumnarHashAggregateExec(
         throw new UnsupportedOperationException("Unsupported filter in AggregateExpression")
       }
       if (exp.isDistinct) {
-        throw new RuntimeException("Unsupported aggregate expression with distinct flag")
+        throw new UnsupportedOperationException("Unsupported aggregate expression with distinct flag")
       }
       if (exp.mode == Final) {
         exp.aggregateFunction match {
           case Sum(_) | Min(_) | Max(_) | Count(_) =>
             val aggExp = exp.aggregateFunction.inputAggBufferAttributes.head
             omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType, aggExp.metadata)
-            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp, true)
             omniAggOutputTypes(index) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression: ${exp}")
+          case _ => throw new UnsupportedOperationException(s"Unsupported aggregate aggregateFunction: ${exp}")
         }
       } else if (exp.mode == Partial) {
         omniInputRaw = true
@@ -184,15 +186,15 @@ case class ColumnarHashAggregateExec(
           case Sum(_) | Min(_) | Max(_) | Count(_) =>
             val aggExp = exp.aggregateFunction.children.head
             omniAggTypes(index) = sparkTypeToOmniType(aggExp.dataType)
-            omniAggFunctionTypes(index) = toOmniAggFunType(exp)
+            omniAggFunctionTypes(index) = toOmniAggFunType(exp, true)
             omniAggOutputTypes(index) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(index) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression: ${exp}")
+          case _ => throw new UnsupportedOperationException(s"Unsupported aggregate aggregateFunction: ${exp}")
         }
       } else {
-        throw new RuntimeException(s"Unsupported aggregate mode: ${exp.mode}")
+        throw new UnsupportedOperationException(s"Unsupported aggregate mode: ${exp.mode}")
       }
       index += 1
     }

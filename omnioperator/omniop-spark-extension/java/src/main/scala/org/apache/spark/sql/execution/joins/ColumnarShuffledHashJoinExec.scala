@@ -32,11 +32,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
+import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.{FullOuter, JoinType}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
-import org.apache.spark.sql.execution.{RowIterator, SparkPlan}
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
+import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.execution.util.SparkMemoryUtils
 import org.apache.spark.sql.execution.vectorized.OmniColumnVector
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -70,6 +70,8 @@ case class ColumnarShuffledHashJoinExec(
   )
 
   override def supportsColumnar: Boolean = true
+
+  override def supportCodegen: Boolean = false
 
   override def nodeName: String = "OmniColumnarShuffledHashJoin"
 
@@ -220,6 +222,8 @@ case class ColumnarShuffledHashJoinExec(
         SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit](_ => {
           buildOp.close()
           lookupOp.close()
+          buildOpFactory.close()
+          lookupOpFactory.close()
         })
 
         val resultSchema = this.schema

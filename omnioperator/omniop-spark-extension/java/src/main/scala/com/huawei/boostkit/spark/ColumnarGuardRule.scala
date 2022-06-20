@@ -185,11 +185,11 @@ case class ColumnarGuardRule() extends Rule[SparkPlan] {
         case e: UnsupportedOperationException =>
           logDebug(s"[OPERATOR FALLBACK] ${e} ${plan.getClass} falls back to Spark operator")
           return false
-        case _: RuntimeException =>
-          logDebug(s"[OPERATOR FALLBACK] ${plan.getClass} falls back to Spark operator")
+        case r: RuntimeException =>
+          logDebug(s"[OPERATOR FALLBACK] ${r} ${plan.getClass} falls back to Spark operator")
           return false
-        case _: Throwable =>
-          logDebug(s"[OPERATOR FALLBACK] ${plan.getClass} falls back to Spark operator")
+        case t: Throwable =>
+          logDebug(s"[OPERATOR FALLBACK] ${t} ${plan.getClass} falls back to Spark operator")
           return false
       }
     true

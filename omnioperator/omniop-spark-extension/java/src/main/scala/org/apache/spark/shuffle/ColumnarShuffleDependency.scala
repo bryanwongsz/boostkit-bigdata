@@ -39,9 +39,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
  * @param mapSideCombine whether to perform partial aggregation (also known as map-side combine)
  * @param shuffleWriterProcessor the processor to control the write behavior in ShuffleMapTask
  * @param PartitionInfo hold partitioning parameters needed by native splitter
- * @param dataSize for shuffle data size tracking
- * @param bytesSpilled for shuffle spill size tracking
- * @param splitTime native split time metric
  */
 class ColumnarShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
     @transient private val _rdd: RDD[_ <: Product2[K, V]],

@@ -1,5 +1,19 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+ * Copyright (C) 2022-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package com.huawei.boostkit.spark.expression
@@ -185,7 +199,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
       "\"operator\":\"LESS_THAN_OR_EQUAL\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
       "\"right\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":1}}",
-      LessThan(allAttribute(0), allAttribute(1)))
+      LessThanOrEqual(allAttribute(0), allAttribute(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
       "\"operator\":\"LESS_THAN_OR_EQUAL\"," +
@@ -229,11 +243,11 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
       IsNotNull(allAttribute(4)))
 
     checkJsonExprRewrite("{\"exprType\":\"FUNCTION\",\"returnType\":2,\"function_name\":\"CAST\"," +
-      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":1}]}}",
+      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":1}]}",
       Cast(allAttribute(1), LongType))
 
     checkJsonExprRewrite("{\"exprType\":\"FUNCTION\",\"returnType\":1,\"function_name\":\"abs\"," +
-      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}}",
+      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}",
       Abs(allAttribute(0)))
   }
 
@@ -248,12 +262,10 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
   }
 
   protected def checkJsonExprRewrite(expected: Any, expression: Expression): Unit = {
-    {
       val runResult = rewriteToOmniJsonExpressionLiteral(expression, getExprIdMap(allAttribute))
       if (!expected.equals(runResult)) {
         fail(s"expression($expression) not match with expected value:$expected," +
           s"running value:$runResult")
       }
-    }
   }
 }

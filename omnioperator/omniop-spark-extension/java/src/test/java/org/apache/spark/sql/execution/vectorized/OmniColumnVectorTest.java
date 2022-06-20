@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.vectorizrd;
+package org.apache.spark.sql.execution.vectorized;
 
-import junit.framwork.TestCase;
+import junit.framework.TestCase;
 import nova.hetu.omniruntime.vector.*;
 import org.apache.orc.Reader.Options;
 import org.apache.hadoop.conf.Configuration;
@@ -44,13 +44,13 @@ public class OmniColumnVectorTest extends TestCase {
 
     @After
     public void tearDown() throws Exception {
-        System.out.println("OrcColumnarNativeReaderTest test finished");
+        System.out.println("OmniColumnarVectorTest test finished");
     }
 
 
     @Test
     public void testNewOmniColumnVector() {
-        OmniCOlumnVector vecTmp = new OmniColumnVector(4096, DataTypes.LongType, true);
+        OmniColumnVector vecTmp = new OmniColumnVector(4096, DataTypes.LongType, true);
         LongVec vecLong = new LongVec(4096);
         vecTmp.setVec(vecLong);
         vecTmp.putLong(0, 123L);
@@ -58,7 +58,7 @@ public class OmniColumnVectorTest extends TestCase {
         assertTrue(vecTmp.getVec() != null);
         vecTmp.close();
 
-        OmniCOlumnVector vecTmp1 = new OmniColumnVector(4096, DataTypes.IntrgerType, true);
+        OmniColumnVector vecTmp1 = new OmniColumnVector(4096, DataTypes.IntrgerType, true);
         IntVec vecInt = new IntVec(4096);
         vecTmp1.setVec(vecInt);
         vecTmp1.putInt(0, 123);
@@ -66,7 +66,7 @@ public class OmniColumnVectorTest extends TestCase {
         assertTrue(vecTmp1.getVec() != null);
         vecTmp1.close();
 
-        OmniCOlumnVector vecTmp3 = new OmniColumnVector(4096, DataTypes.BooleanType, true);
+        OmniColumnVector vecTmp3 = new OmniColumnVector(4096, DataTypes.BooleanType, true);
         BooleanVec vecBoolean = new BooleanVec(4096);
         vecTmp3.setVec(vecBoolean);
         vecTmp3.putBoolean(0, true);
@@ -74,7 +74,7 @@ public class OmniColumnVectorTest extends TestCase {
         assertTrue(vecTmp3.getVec() != null);
         vecTmp3.close();
 
-        OmniCOlumnVector vecTmp4 = new OmniColumnVector(4096, DataTypes.BooleanType, false);
+        OmniColumnVector vecTmp4 = new OmniColumnVector(4096, DataTypes.BooleanType, false);
         BooleanVec vecBoolean1 = new BooleanVec(4096);
         vecTmp4.setVec(vecBoolean1);
         vecTmp4.putBoolean(0, true);
@@ -99,9 +99,9 @@ public class OmniColumnVectorTest extends TestCase {
         OmniColumnVector vecTmp1 = new OmniColumnVector(4096, DataTypes.IntegerType, true);
         IntVec vecInt = new IntVec(4096);
         vecTmp1.setVec(vecInt);
-        vecTmp1.putLongs(0, 10, 123);
-        long[] getInts = vecTmp1.getLongs(0, 10);
-        for (long i : getInts) {
+        vecTmp1.putInts(0, 10, 123);
+        int[] getInts = vecTmp1.getInts(0, 10);
+        for (int i : getInts) {
             assertTrue(i == 123);
         }
         assertTrue(vecTmp1.getVec() != null);
@@ -110,9 +110,9 @@ public class OmniColumnVectorTest extends TestCase {
         OmniColumnVector vecTmp3 = new OmniColumnVector(4096, DataTypes.BooleanType, true);
         BooleanVec vecBoolean = new BooleanVec(4096);
         vecTmp3.setVec(vecBoolean);
-        vecTmp3.putLongs(0, 10, true);
-        long[] getBools = vecTmp.getLongs(0, 10);
-        for (long i : getBools) {
+        vecTmp3.putBooleans(0, 10, true);
+        boolean[] getBools = vecTmp3.getBooleans(0, 10);
+        for (boolean i : getBools) {
             assertTrue(i == true);
         }
         assertTrue(vecTmp3.getVec() != null);
@@ -121,9 +121,9 @@ public class OmniColumnVectorTest extends TestCase {
         OmniColumnVector vecTmp4 = new OmniColumnVector(4096, DataTypes.BooleanType, false);
         BooleanVec vecBoolean1 = new BooleanVec(4096);
         vecTmp4.setVec(vecBoolean1);
-        vecTmp4.putLongs(0, 10, true);
-        long[] getBools1 = vecTmp.getLongs(0, 10);
-        for (long i : getBools1) {
+        vecTmp4.putBooleans(0, 10, true);
+        boolean[] getBools1 = vecTmp4.getBooleans(0, 10);
+        for (boolean i : getBools1) {
             assertTrue(i == true);
         }
         System.out.println(vecTmp4.getBoolean(0));

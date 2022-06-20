@@ -1,5 +1,5 @@
 /*
- * Copyrights (C) 2020-2022 Huawei Technologies Co., Ltd. All rights reserved.
+ * Copyrights (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -67,7 +67,7 @@ public class OrcColumnarBatchJniReaderTest extends TestCase {
         options.schema(schema);
         options.include(OrcInputFormat.parseInclude(schema,
                 null));
-        String kryoSarg = "AQEAb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLkV4cHJ1c3Npb25UcmXlAQEBamF2YS51dGlsLkFycmF5TGlz9AECAQABAQEBAQEAAQAAAAEEAAEAwBEAAQEBAQEBAAEAAAIIAAEJAAEBAgEBAQIBAscBb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLlNlYXJjaEFyZ3VtZW50SW1wbCRQcmVkaWNhdGVMZWFmSW1wbAEBaV9pdGVtX3PrAAABBwEBAQIBEAkAAAEEEg==";
+        String kryoSarg = "AQEAb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLkV4cHJlc3Npb25UcmXlAQEBamF2YS51dGlsLkFycmF5TGlz9AECAQABAQEBAQEAAQAAAAEEAAEBAwEAAQEBAQEBAAEAAAIIAAEJAAEBAgEBAQIBAscBb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLlNlYXJjaEFyZ3VtZW50SW1wbCRQcmVkaWNhdGVMZWFmSW1wbAEBaV9pdGVtX3PrAAABBwEBAQIBEAkAAAEEEg==";
         String sargColumns = "i_item_sk,i_item_id,i_rec_start_date,i_rec_end_date,i_item_desc,i_current_price,i_wholesale_cost,i_brand_id,i_brand,i_class_id,i_class,i_category_id,i_category,i_manufact_id,i_manufact,i_size,i_formulation,i_color,i_units,i_container,i_manager_id,i_product_name";
         if (kryoSarg != null && sargColumns != null) {
             byte[] sargBytes = Base64.decodeBase64(kryoSarg);
@@ -113,7 +113,7 @@ public class OrcColumnarBatchJniReaderTest extends TestCase {
         assertTrue(rtn == 4096);
         assertTrue(((LongVec) vecs[0]).get(0) == 1);
         String str = new String(((VarcharVec) vecs[1]).get(0));
-        assertTrue(str.equals("AAAAAABAAAAAAA"));
+        assertTrue(str.equals("AAAAAAAABAAAAAAA"));
     }
 
 }

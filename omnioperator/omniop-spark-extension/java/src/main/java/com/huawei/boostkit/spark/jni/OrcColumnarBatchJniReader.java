@@ -88,11 +88,11 @@ public class OrcColumnarBatchJniReader {
                     String[] spiltValues = pl.getLiteral().toString().split("\\.");
                     String strToAdd = "";
                     if (spiltValues.length == 2) {
-                        strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace('.', '0');
+                        strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace(' ', '0');
                     } else {
-                        strToAdd = String.format("%1$" + decimalS + "s", "").replace('.', '0');
+                        strToAdd = String.format("%1$" + decimalS + "s", "").replace(' ', '0');
                     }
-                    jsonObject.put("literal", spiltValues()[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
+                    jsonObject.put("literal", spiltValues[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
                 } else {
                     jsonObject.put("literal", pl.getLiteral().toString());
                 }
@@ -105,14 +105,14 @@ public class OrcColumnarBatchJniReader {
                     if (pl.getType() == PredicateLeaf.Type.DECIMAL) {
                         int decimalP =  schema.findSubtype(pl.getColumnName()).getPrecision();
                         int decimalS =  schema.findSubtype(pl.getColumnName()).getScale();
-                        String[] spiltValues = ob.getLiteral().toString().split("\\.");
+                        String[] spiltValues = ob.toString().split("\\.");
                         String strToAdd = "";
                         if (spiltValues.length == 2) {
-                            strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace('.', '0');
+                            strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace(' ', '0');
                         } else {
-                            strToAdd = String.format("%1$" + decimalS + "s", "").replace('.', '0');
+                            strToAdd = String.format("%1$" + decimalS + "s", "").replace(' ', '0');
                         }
-                        lst.add(spiltValues()[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
+                        lst.add(spiltValues[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
                     } else if (pl.getType() == PredicateLeaf.Type.DATE) {
                         lst.add(((int)Math.ceil(((Date)pl.getLiteral()).getTime()* 1.0/3600/24/1000)) + "");
                     } else {

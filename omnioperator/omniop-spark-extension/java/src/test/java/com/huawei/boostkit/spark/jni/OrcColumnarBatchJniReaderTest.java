@@ -27,8 +27,8 @@ import nova.hetu.omniruntime.vector.LongVec;
 import nova.hetu.omniruntime.vector.VarcharVec;
 import nova.hetu.omniruntime.vector.Vec;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.hadoop.hive.q1.io.sarg.SearchArgument;
-import org.apache.hadoop.hive.q1.io.sarg.SearchArgumentImpl;
+import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
+import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentImpl;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
@@ -67,20 +67,20 @@ public class OrcColumnarBatchJniReaderTest extends TestCase {
         options.schema(schema);
         options.include(OrcInputFormat.parseInclude(schema,
                 null));
-        String kryoSarg = "AQEAb3JnLmFwYWNoZs5oYWRvb3AuaG12AS5xbC5pby5zYXJnLKV4cHJ1c3Npb25UcmX1AQEBamF2YS51dGlsLkFycmF5TGlz9AECAQABEBAQEAAQAAAAEEAAEAwEAAQEBAQEBAAEAAAIIAAEJAAEBAgEBAQIBAscBb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLlNlYXJiaEFyZ3VtZW50SW1wbCRQcmVkaWNhdGVMZWFmSW1wbAEBaV9bdGVtX3PrAAABBwEBAQIBEAkAAAEEEg==";
-        String sargColumns = "i_item_sk,i_item_id,i_rec_start_date,i_rec_end_date,i_item_desc,i_current_price,i_wholesale_cost,i_brand_id,i_class_id,i_class,i_category_id,i_category,i_manufact_id,i_manufact,i_size,i_formulation,i_color,i_units,i_container,i_manager_id,i_product_name";
+        String kryoSarg = "AQEAb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLkV4cHJ1c3Npb25UcmXlAQEBamF2YS51dGlsLkFycmF5TGlz9AECAQABAQEBAQEAAQAAAAEEAAEAwBEAAQEBAQEBAAEAAAIIAAEJAAEBAgEBAQIBAscBb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLlNlYXJjaEFyZ3VtZW50SW1wbCRQcmVkaWNhdGVMZWFmSW1wbAEBaV9pdGVtX3PrAAABBwEBAQIBEAkAAAEEEg==";
+        String sargColumns = "i_item_sk,i_item_id,i_rec_start_date,i_rec_end_date,i_item_desc,i_current_price,i_wholesale_cost,i_brand_id,i_brand,i_class_id,i_class,i_category_id,i_category,i_manufact_id,i_manufact,i_size,i_formulation,i_color,i_units,i_container,i_manager_id,i_product_name";
         if (kryoSarg != null && sargColumns != null) {
             byte[] sargBytes = Base64.decodeBase64(kryoSarg);
             SearchArgument sarg =
-                    new Kryo().readObject(new Input(sargBytes), SearchArgumnetImpl.class);
+                    new Kryo().readObject(new Input(sargBytes), SearchArgumentImpl.class);
             options.searchArgument(sarg, sargColumns.split(","));
             sarg.getExpression().toString();
         }
 
         orcColumnarBatchJniReader = new OrcColumnarBatchJniReader();
         initReaderJava();
-        initRecordReaderJava();
-        initBatch();
+        initRecordReaderJava(options);
+        initBatch(options);
     }
 
     @After
@@ -89,20 +89,20 @@ public class OrcColumnarBatchJniReaderTest extends TestCase {
     }
 
     public void initReaderJava() {
-        OrcFile.ReaderOptions readerOptions = OrcFile.ReaderOptions(conf);
+        OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(conf);
         File directory = new File("src/test/java/com/huawei/boostkit/spark/jni/orcsrc/000000_0");
-        System.out.println(directory.getAbsolutePath());
-        orcColumnarBatchJniReader.reader = orcColumnarBatchJniReader.initializeReader(directory.getAbsolutePath(), job);
+        String path = directory.getAbsolutePath();
+        orcColumnarBatchJniReader.reader = orcColumnarBatchJniReader.initializeReaderJava(path, readerOptions);
         assertTrue(orcColumnarBatchJniReader.reader != 0);
     }
 
-    public void initRecordReaderJava() {
-        orcColumnarBatchJniReader.recordReader = orcColumnarBatchJniReader.initializeRecordReader(orcColumnarBatchJniReader.reader, job);
+    public void initRecordReaderJava(Options options) {
+        orcColumnarBatchJniReader.recordReader = orcColumnarBatchJniReader.initializeRecordReaderJava(options);
         assertTrue(orcColumnarBatchJniReader.recordReader != 0);
     }
 
-    public void initBatch() {
-        orcColumnarBatchJniReader.batchReader = orcColumnarBatchJniReader.initializeBatch(orcColumnarBatchJniReader.recordReader, 4096);
+    public void initBatch(Options options) {
+        orcColumnarBatchJniReader.initBatchJava(batchSize);
         assertTrue(orcColumnarBatchJniReader.batchReader != 0);
     }
 
@@ -113,7 +113,7 @@ public class OrcColumnarBatchJniReaderTest extends TestCase {
         assertTrue(rtn == 4096);
         assertTrue(((LongVec) vecs[0]).get(0) == 1);
         String str = new String(((VarcharVec) vecs[1]).get(0));
-        assertTrue(str.equals("AAAAAAABAAAAAAA"));
+        assertTrue(str.equals("AAAAAABAAAAAAA"));
     }
 
 }

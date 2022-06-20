@@ -153,7 +153,7 @@ class ColumnarPluginConfig(conf: SQLConf) extends Logging {
 
   val enableJit: Boolean = conf.getConfString("spark.omni.sql.columnar.jit", "false").toBoolean
 
-  val enableDecimalCheck : Boolean = conf.getConfString("spark.omni.sql.decimal.constraint.chek", "true").toBoolean
+  val enableDecimalCheck : Boolean = conf.getConfString("spark.omni.sql.decimal.constraint.check", "true").toBoolean
 }
 
 

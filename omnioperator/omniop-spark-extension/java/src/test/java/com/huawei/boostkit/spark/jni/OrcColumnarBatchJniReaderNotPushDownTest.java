@@ -1,5 +1,5 @@
 /*
- * Copyrights (C) 2020-2022 Huawei Technologies Co., Ltd. All rights reserved.
+ * Copyright (C) 2020-2022 Huawei Technologies Co., Ltd. All rights reserved.
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -85,8 +85,8 @@ public class OrcColumnarBatchJniReaderNotPushDownTest extends TestCase {
 
     @Test
     public void testNext() {
-        int[] typeId = new int[4];
-        long[] vecNativeId = new long[4];
+        int[] typeId = new int[2];
+        long[] vecNativeId = new long[2];
         long rtn = orcColumnarBatchJniReader.recordReaderNext(orcColumnarBatchJniReader.recordReader, orcColumnarBatchJniReader.reader, orcColumnarBatchJniReader.batchReader, typeId, vecNativeId);
         assertTrue(rtn == 4096);
         LongVec vec1 = new LongVec(vecNativeId[0]);
@@ -96,6 +96,6 @@ public class OrcColumnarBatchJniReaderNotPushDownTest extends TestCase {
         String tmp1 = new String(vec2.get(4090));
         String tmp2 = new String(vec2.get(4000));
         assertTrue(tmp1.equals("AAAAAAAAKPPAAAAA"));
-        assertTrue(tmp1.equals("AAAAAAAAAPAAAAAA"));
+        assertTrue(tmp2.equals("AAAAAAAAKPAAAAAA"));
     }
 }

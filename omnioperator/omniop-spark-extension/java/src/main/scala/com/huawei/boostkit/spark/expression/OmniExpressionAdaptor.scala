@@ -18,7 +18,7 @@
 
 package com.huawei.boostkit.spark.expression
 
-import com.huawei.boostkit.spark.Constant.{DEFAULT_STRING_TYPE_LENGTH, IS_DEIMAL_CHECK, OMNI_BOOLEAN_TYPE, OMNI_DATE_TYPE, OMNI_DECIMAL128_TYPE, OMNI_DECIMAL64_TYPE, OMNI_DOUBLE_TYPE, OMNI_INTEGER_TYPE, OMNI_LONG_TYPE, OMNI_SHOR_TYPE, OMNI_VARCHAR_TYPE}
+import com.huawei.boostkit.spark.Constant.{DEFAULT_STRING_TYPE_LENGTH, IS_DECIMAL_CHECK, OMNI_BOOLEAN_TYPE, OMNI_DATE_TYPE, OMNI_DECIMAL128_TYPE, OMNI_DECIMAL64_TYPE, OMNI_DOUBLE_TYPE, OMNI_INTEGER_TYPE, OMNI_LONG_TYPE, OMNI_SHOR_TYPE, OMNI_VARCHAR_TYPE}
 import nova.hetu.omniruntime.`type`.{BooleanDataType, DataTypeSerializer, Date32DataType, Decimal128DataType, Decimal64DataType, DoubleDataType, IntDataType, LongDataType, ShortDataType, VarcharDataType}
 import nova.hetu.omniruntime.constants.FunctionType
 import nova.hetu.omniruntime.constants.FunctionType.{OMNI_AGGREGATION_TYPE_AVG, OMNI_AGGREGATION_TYPE_COUNT_COLUMN, OMNI_AGGREGATION_TYPE_MAX, OMNI_AGGREGATION_TYPE_MIN, OMNI_AGGREGATION_TYPE_SUM, OMNI_WINDOW_TYPE_RANK, OMNI_WINDOW_TYPE_ROW_NUMBER}
@@ -51,14 +51,14 @@ object OmniExpressionAdaptor extends Logging {
     attrMap
   }
 
-  private  def DECIMAL_ALLOWEEDTYPES: Seq(DecimalType(7,2), DecimalType(17,2), DecimalType(21,6), DecimalType(22,6), DecimalType(38,16))
+  private  def DECIMAL_ALLOWEDTYPES: Seq[DecimalType] = Seq(DecimalType(7,2), DecimalType(17,2), DecimalType(21,6), DecimalType(22,6), DecimalType(38,16))
 
   def checkDecimalTypeWhiteList(dt: DecimalType): Unit = {
     if (!IS_DECIMAL_CHECK) {
       return
     }
-    if (!DECIMAL_ALLOWEEDTYPES.contains(dt)) {
-      throw new UnsupportedOperationException(s"deciaml precision and scale not in support scope, ${dt}")
+    if (!DECIMAL_ALLOWEDTYPES.contains(dt)) {
+      throw new UnsupportedOperationException(s"decimal precision and scale not in support scope, ${dt}")
     }
   }
 
@@ -69,10 +69,10 @@ object OmniExpressionAdaptor extends Logging {
     // inputTypes will not be checked if parseFormat is json( == 1),
     // only if its parseFormat is String (== 0)
     val returnCode: Long = new OmniExprVerify().exprVerifyNative(
-      DataTypeSerializer.serialize(new Array[nova.hetu.omniruntime.~type~.DataType](0)),
+      DataTypeSerializer.serialize(new Array[nova.hetu.omniruntime.`type`.DataType](0)),
       0, filterExpr, projections, projections.length, 1)
     if (returnCode == 0) {
-      throw new UnsupportedOperationException(s"Unsupported OmniJson Expression \nfilter:${filterExpr}  \nproejcts:${projections.mkString("-")}")
+      throw new UnsupportedOperationException(s"Unsupported OmniJson Expression \nfilter:${filterExpr}  \nproejcts:${projections.mkString("=")}")
     }
   }
 
@@ -510,7 +510,7 @@ object OmniExpressionAdaptor extends Logging {
       // Substring
       case subString: Substring =>
         ("{\"exprType\":\"FUNCTION\",\"returnType\":%s," +
-          "\"function_name\":\"substr\", \"arguments\":[%s,%s,%s]")
+          "\"function_name\":\"substr\", \"arguments\":[%s,%s,%s]}")
           .format(sparkTypeToOmniExpJsonType(subString.dataType),
           rewriteToOmniJsonExpressionLiteral(subString.str, exprsIndexMap),
           rewriteToOmniJsonExpressionLiteral(subString.pos, exprsIndexMap),
@@ -658,7 +658,7 @@ object OmniExpressionAdaptor extends Logging {
           // NOTES: decimal128 literal value need use string format
           ("{\"exprType\":\"LITERAL\",\"dataType\":%s," +
             "\"isNull\":%b, \"value\":\"%s\", \"precision\":%s, \"scale\":%s}").format(omniType,
-            false, value.asInstanceOf[Decimal].toJavaBigDecimal.unscaled().toString(),
+            false, value.asInstanceOf[Decimal].toJavaBigDecimal.unscaledValue().toString(),
             dt.precision, dt.scale)
         }
       case _ =>
@@ -671,8 +671,8 @@ object OmniExpressionAdaptor extends Logging {
     agg.aggregateFunction match {
       case Sum(_) => {
         if (isHashAgg) {
-          if (agg.dataType.isInstanceOf[DeciamlType]) {
-            new UnsupportedOperationException("HashAgg not supported decaiml input")
+          if (agg.dataType.isInstanceOf[DecimalType]) {
+            new UnsupportedOperationException("HashAgg not supported decimal input")
           }
         }
         OMNI_AGGREGATION_TYPE_SUM
@@ -681,7 +681,7 @@ object OmniExpressionAdaptor extends Logging {
       case Average(_) => OMNI_AGGREGATION_TYPE_AVG
       case Min(_) => OMNI_AGGREGATION_TYPE_MIN
       case Count(Literal(1, IntegerType) :: Nil) | Count(ArrayBuffer(Literal(1, IntegerType))) =>
-        throw new UnsupportedOperationException()("Unsupported count(*) or count(1)")
+        throw new UnsupportedOperationException("Unsupported count(*) or count(1)")
       case Count(_) => OMNI_AGGREGATION_TYPE_COUNT_COLUMN
       case _ => throw new UnsupportedOperationException(s"Unsupported aggregate function: $agg")
     }

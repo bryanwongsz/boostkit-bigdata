@@ -27,8 +27,8 @@ class ShuffleTest : public testing::Test {
 protected:
 
     // run before fist case...
-    static void SetUoTestSuite() {
-        tmpTestingDir = s_shuffle_test_dir;
+    static void SetUpTestSuite() {
+        tmpTestingDir = s_shuffle_tests_dir;
         if (!IsFileExist(tmpTestingDir)) {
             mkdir(tmpTestingDir.c_str(), S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH);
         }
@@ -54,7 +54,7 @@ protected:
 
 };
 
-TEST_T (ShuffleTest, Split_SingleVarChar) {
+TEST_F (ShuffleTest, Split_SingleVarChar) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_SingleVarChar";
     int32_t inputVecTypeIds[] = {OMNI_VARCHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -91,7 +91,7 @@ TEST_T (ShuffleTest, Split_SingleVarChar) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Fixed_Cols) {
+TEST_F (ShuffleTest, Split_Fixed_Cols) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_fixed_cols";
     int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG, OMNI_DOUBLE};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -110,7 +110,7 @@ TEST_T (ShuffleTest, Split_Fixed_Cols) {
                                               0,
                                               tmpTestingDir);
     for (uint64_t j = 0; j < 999; j++) {
-        VectorBatch* vb = CreateVectorBatch_3fixedCos_withPid(partitionNum, 999);
+        VectorBatch* vb = CreateVectorBatch_3fixedCols_withPid(partitionNum, 999);
         Test_splitter_split(splitterId, vb);
     }
     Test_splitter_stop(splitterId);
@@ -119,7 +119,7 @@ TEST_T (ShuffleTest, Split_Fixed_Cols) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Fixed_SinglePartition_SomeNullRow) {
+TEST_F (ShuffleTest, Split_Fixed_SinglePartition_SomeNullRow) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_fixed_singlePartition_someNullRow";
     int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG, OMNI_DOUBLE, OMNI_VARCHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -147,7 +147,7 @@ TEST_T (ShuffleTest, Split_Fixed_SinglePartition_SomeNullRow) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Fixed_SinglePartition_SomeNullCol) {
+TEST_F (ShuffleTest, Split_Fixed_SinglePartition_SomeNullCol) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_fixed_singlePartition_someNullCol";
     int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG, OMNI_DOUBLE, OMNI_VARCHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -166,7 +166,7 @@ TEST_T (ShuffleTest, Split_Fixed_SinglePartition_SomeNullCol) {
                                               0,
                                               tmpTestingDir);
     for (uint64_t j = 0; j < 100; j++) {
-        VectorBatch* vb = CreateVectorBatch_someNullRow_vectorBatch();
+        VectorBatch* vb = CreateVectorBatch_someNullCol_vectorBatch();
         Test_splitter_split(splitterId, vb);
     }
     Test_splitter_stop(splitterId);
@@ -195,7 +195,7 @@ TEST_F (ShuffleTest, Split_Compression_Zlib) {
     Test_Shuffle_Compression("zlib", 4, 999, 999);
 }
 
-TEST_T (ShuffleTest, Split_Mix_LargeSize) {
+TEST_F (ShuffleTest, Split_Mix_LargeSize) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_mix_largeSize";
     int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG, OMNI_DOUBLE, OMNI_VARCHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -213,7 +213,7 @@ TEST_T (ShuffleTest, Split_Mix_LargeSize) {
                                               tmpShuffleFilePath,
                                               0,
                                               tmpTestingDir);
-    for (uint64_t j = 0; j < 100; j++) {
+    for (uint64_t j = 0; j < 999; j++) {
         VectorBatch* vb = CreateVectorBatch_4col_withPid(partitionNum, 999);
         Test_splitter_split(splitterId, vb);
     }
@@ -223,7 +223,7 @@ TEST_T (ShuffleTest, Split_Mix_LargeSize) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Long_10WRows) {
+TEST_F (ShuffleTest, Split_Long_10WRows) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_long_10WRows";
     int32_t inputVecTypeIds[] = {OMNI_LONG};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -251,9 +251,9 @@ TEST_T (ShuffleTest, Split_Long_10WRows) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_VarChar_LargeSize) {
+TEST_F (ShuffleTest, Split_VarChar_LargeSize) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_varchar_largeSize";
-    int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG, OMNI_DOUBLE, OMNI_VARCHAR};
+    int32_t inputVecTypeIds[] = {OMNI_VARCHAR, OMNI_VARCHAR, OMNI_VARCHAR, OMNI_VARCHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
     InputDataTypes inputDataTypes;
     inputDataTypes.inputVecTypeIds = inputVecTypeIds;
@@ -270,7 +270,7 @@ TEST_T (ShuffleTest, Split_VarChar_LargeSize) {
                                               64,
                                               tmpTestingDir);
     for (uint64_t j = 0; j < 99; j++) {
-        VectorBatch* vb = CreateVectorBatch_1longCol_withPid(partitionNum, 99);
+        VectorBatch* vb = CreateVectorBatch_4varcharCols_withPid(partitionNum, 99);
         Test_splitter_split(splitterId, vb);
     }
     Test_splitter_stop(splitterId);
@@ -279,7 +279,7 @@ TEST_T (ShuffleTest, Split_VarChar_LargeSize) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_VarChar_First) {
+TEST_F (ShuffleTest, Split_VarChar_First) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_varchar_first";
     int32_t inputVecTypeIds[] = {OMNI_VARCHAR, OMNI_INT};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -295,7 +295,7 @@ TEST_T (ShuffleTest, Split_VarChar_First) {
                                               4096,
                                               "lz4",
                                               tmpShuffleFilePath,
-                                              64,
+                                              0,
                                               tmpTestingDir);
     VectorBatch* vb0 = CreateVectorBatch_2column_1row_withPid(0, "corpbrand #4", 1);
     Test_splitter_split(splitterId, vb0);
@@ -313,7 +313,7 @@ TEST_T (ShuffleTest, Split_VarChar_First) {
     Test_splitter_split(splitterId, vb6);
     VectorBatch* vb7 = CreateVectorBatch_2column_1row_withPid(2, "edu packamalg #1", 1);
     Test_splitter_split(splitterId, vb7);
-    VectorBatch* vb8 = CreateVectorBatch_2column_1row_withPid(0, "brandnameless #1", 1);
+    VectorBatch* vb8 = CreateVectorBatch_2column_1row_withPid(0, "brandnameless #8", 1);
     Test_splitter_split(splitterId, vb8);
     VectorBatch* vb9 = CreateVectorBatch_2column_1row_withPid(2, "univmaxi #2", 1);
     Test_splitter_split(splitterId, vb9);
@@ -323,7 +323,7 @@ TEST_T (ShuffleTest, Split_VarChar_First) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Dictionary) {
+TEST_F (ShuffleTest, Split_Dictionary) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_split_dictionary";
     int32_t inputVecTypeIds[] = {OMNI_INT, OMNI_LONG};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -342,7 +342,7 @@ TEST_T (ShuffleTest, Split_Dictionary) {
                                               0,
                                               tmpTestingDir);
     for (uint64_t j = 0; j < 2; j++) {
-        VectorBatch* vb = CreateVectorBatch_2dictionary_withPid(partitionNum);
+        VectorBatch* vb = CreateVectorBatch_2dictionaryCols_withPid(partitionNum);
         Test_splitter_split(splitterId, vb);
     }
     Test_splitter_stop(splitterId);
@@ -351,7 +351,7 @@ TEST_T (ShuffleTest, Split_Dictionary) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Char) {
+TEST_F (ShuffleTest, Split_Char) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_char_largeSize";
     int32_t inputVecTypeIds[] = {OMNI_CHAR, OMNI_CHAR, OMNI_CHAR, OMNI_CHAR};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -379,7 +379,7 @@ TEST_T (ShuffleTest, Split_Char) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Decimal128) {
+TEST_F (ShuffleTest, Split_Decimal128) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_decimal128_test";
     int32_t inputVecTypeIds[] = {OMNI_DECIMAL128};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -407,7 +407,7 @@ TEST_T (ShuffleTest, Split_Decimal128) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Decimal64) {
+TEST_F (ShuffleTest, Split_Decimal64) {
     tmpShuffleFilePath = tmpTestingDir + "/shuffle_decimal64_test";
     int32_t inputVecTypeIds[] = {OMNI_DECIMAL64};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
@@ -435,8 +435,8 @@ TEST_T (ShuffleTest, Split_Decimal64) {
     delete[] inputDataTypes.inputDataScales;
 }
 
-TEST_T (ShuffleTest, Split_Decimal64_128) {
-    tmpShuffleFilePath = tmpTestingDir + "/shuffle_decimal128_test";
+TEST_F (ShuffleTest, Split_Decimal64_128) {
+    tmpShuffleFilePath = tmpTestingDir + "/shuffle_decimal64_128";
     int32_t inputVecTypeIds[] = {OMNI_DECIMAL64, OMNI_DECIMAL128};
     int colNumber = sizeof(inputVecTypeIds) / sizeof(inputVecTypeIds[0]);
     InputDataTypes inputDataTypes;

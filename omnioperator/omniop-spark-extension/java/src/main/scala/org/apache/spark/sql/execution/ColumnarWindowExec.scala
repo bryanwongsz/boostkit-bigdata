@@ -368,16 +368,15 @@ case class ColumnarWindowExec(windowExpression: Seq[NamedExpression],
       })
 
       var windowResultSchema = this.schema
-      val skipWindowRstExpVecCnt = skipColumns
       if (windowExpressionWithProjectConstant) {
         val omnifinalOutSchema = child.output ++ winExpToReferences.map(_.toAttribute)
         windowResultSchema = StructType.fromAttributes(omnifinalOutSchema)
       }
-      val sourceSize = sourceTypes.length
-      var omniWindowResultIter = new Iterator[ColumnarBatch] {
+      val outputSize = outputCols.length
+      val omniWindowResultIter = new Iterator[ColumnarBatch] {
         override def hasNext: Boolean = {
           val startGetOp: Long = System.nanoTime()
-          var hasNext = results.hasNext
+          val hasNext = results.hasNext
           getOutputTime += NANOSECONDS.toMillis(System.nanoTime() - startGetOp)
           hasNext
         }

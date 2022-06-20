@@ -162,7 +162,7 @@ object OmniAdaptorUtil {
           for (i <- 0 until columnSize) {
             if (!columnVector.isNullAt(i)) {
               vec.setBigInteger(i,
-                columnVector.getDecimal(i, t.precision, t.scale).toJavaBigInteger)
+                columnVector.getDecimal(i, t.precision, t.scale).toJavaBigDecimal.unscaledValue())
             } else {
               vec.setNull(i)
             }

@@ -1,5 +1,20 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+/**
+ * Copyrights (C) Huawei Technologies Co., Ltd. 2020-2022. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to You under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include "splitter.h"
@@ -64,7 +79,7 @@ int Splitter::AllocatePartitionBuffers(int32_t partition_id, int32_t new_size) {
                 void *ptr_tmp = static_cast<void *>(options_.allocator->alloc(new_size * (1 << column_type_id_[i])));
                 fixed_valueBuffer_size_[partition_id] = new_size * (1 << column_type_id_[i]);
                 if (nullptr == ptr_tmp) {
-                    throw std::runtime_error("Allocator for AllocatorPartitionBuffers Faild! ");
+                    throw std::runtime_error("Allocator for AllocatePartitionBuffers Failed! ");
                 }
                 std::shared_ptr<Buffer> value_buffer (new Buffer((uint8_t *)ptr_tmp, 0, new_size * (1 << column_type_id_[i])));
                 new_value_buffers.push_back(std::move(value_buffer));
@@ -154,8 +169,10 @@ int Splitter::SplitFixedWidthValueBuffer(VectorBatch& vb) {
                         partition_buffer_idx_offset_[pid]++;
                     }
                     break;
-                default:
-                    throw "ERROR: SplitFixedWidthValueBuffer not match this type ";
+                default: {
+                    LogsError("SplitFixedWidthValueBuffer not match this type: %d", column_type_id_[col_idx_schema]);
+                    throw std::runtime_error("SplitFixedWidthValueBuffer not match this type: " + column_type_id_[col_idx_schema]);
+                }
             }
             options_.allocator->free(ids->data_, ids->capacity_);
             if (nullptr == ids) {
@@ -196,8 +213,10 @@ int Splitter::SplitFixedWidthValueBuffer(VectorBatch& vb) {
                         partition_buffer_idx_offset_[pid]++;
                     }
                     break;
-                default:
-                    throw "ERROR: SplitFixedWidthValueBuffer not match this type: " + column_type_id_[col_idx_schema];                
+                default: {
+                    LogsError("ERROR: SplitFixedWidthValueBuffer not match this type: %d", column_type_id_[col_idx_schema]);
+                    throw std::runtime_error("ERROR: SplitFixedWidthValueBuffer not match this type: " + column_type_id_[col_idx_schema]);
+                }
             }
         }
     }
@@ -279,7 +298,7 @@ int Splitter::SplitFixedWidthValidityBuffer(VectorBatch& vb){
                 auto new_size = partition_id_cnt_cur_[pid] > options_.buffer_size ? partition_id_cnt_cur_[pid] : options_.buffer_size;
                 auto ptr_tmp = static_cast<uint8_t *>(options_.allocator->alloc(new_size));
                 if (nullptr == ptr_tmp) {
-                    throw std::runtime_error("Allocator for ValidityBuffer Failed! ")
+                    throw std::runtime_error("Allocator for ValidityBuffer Failed! ");
                 }
                 std::shared_ptr<Buffer> validity_buffer (new Buffer((uint8_t *)ptr_tmp, 0, new_size));
                 dst_addrs[pid] = const_cast<uint8_t*>(validity_buffer->data_);
@@ -754,7 +773,8 @@ int Splitter::protoSpillPartition(int32_t partition_id, std::unique_ptr<Buffered
         uint32_t vecBatchProtoSize = reversebytes_uint32t(vecBatchProto->ByteSize());
         void *buffer = nullptr;
         if (!bufferStream->NextNBytes(&buffer, sizeof(vecBatchProtoSize))) {
-            throw "Allocate Memory Failed: Flush Spilled Data, Next failed.!";
+            LogsError("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
+            throw std::runtime_error("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
         }
         // set serizalized bytes to stream
         memcpy(buffer, &vecBatchProtoSize, sizeof(vecBatchProtoSize));
@@ -768,10 +788,10 @@ int Splitter::protoSpillPartition(int32_t partition_id, std::unique_ptr<Buffered
         vecBatchProto->Clear();
     }
 
-    uint64_t partitonBatchSize = bufferStream->flush();
-    total_bytes_spilled_ += partitonBatchSize;
-    partition_serialization_size_[partition_id] = partitonBatchSize;
-    LogsDebug(" partitionBatch write length: %lu", partitonBatchSize);
+    uint64_t partitionBatchSize = bufferStream->flush();
+    total_bytes_spilled_ += partitionBatchSize;
+    partition_serialization_size_[partition_id] = partitionBatchSize;
+    LogsDebug(" partitionBatch write length: %lu", partitionBatchSize);
 
     // 及时清理分区数据
     partition_cached_vectorbatch_[partition_id].clear(); // 定长数据内存释放
@@ -802,7 +822,7 @@ int Splitter::WriteDataFileProto() {
 void Splitter::MergeSpilled() {
     LogsDebug(" Merge Spilled Tmp File.");
     std::unique_ptr<OutputStream> outStream = writeLocalFile(options_.data_file);
-    LogsDebug(" MergeSplled target dir: %s ", options_.data_file.c_str());
+    LogsDebug(" MergeSpilled target dir: %s ", options_.data_file.c_str());
     WriterOptions options;
     options.setCompression(options_.compression_type);
     options.setCompressionBlockSize(options_.compress_block_size);
@@ -818,7 +838,7 @@ void Splitter::MergeSpilled() {
             auto tmpDataFilePath = pair.first + ".data";
             auto tmpPartitionOffset = reinterpret_cast<int32_t *>(pair.second->data_)[pid];
             auto tmpPartitionSize = reinterpret_cast<int32_t *>(pair.second->data_)[pid + 1] - reinterpret_cast<int32_t *>(pair.second->data_)[pid];
-            LogsDebug(" get Partition Stream...tmpPartitionOffset %d  tmpPartitionSize %d path %s",
+            LogsDebug(" get Partition Stream...tmpPartitionOffset %d tmpPartitionSize %d path %s",
                       tmpPartitionOffset, tmpPartitionSize, tmpDataFilePath.c_str());
             std::unique_ptr<InputStream> inputStream = readLocalFile(tmpDataFilePath);
             uint64_t targetLen = tmpPartitionSize;
@@ -875,7 +895,7 @@ int Splitter::SpillToTmpFile() {
     for (auto i = 0; i < cache_vectorBatch_num; ++i) {
         ReleaseVectorBatch(*vectorBatch_cache_[i]);
         if (nullptr == vectorBatch_cache_[i]) {
-            throw std::runtime_error("delete nullptr error for vectorBatch");
+            throw std::runtime_error("delete nullptr error for free vectorBatch");
         }
         delete vectorBatch_cache_[i];
         vectorBatch_cache_[i] = nullptr;
@@ -945,7 +965,7 @@ int Splitter::Stop() {
     TIME_NANO_OR_RAISE(total_write_time_, DeleteSpilledTmpFile());
     LogsDebug("total_spill_row_num_: %ld ", total_spill_row_num_);
     if (nullptr == vecBatchProto) {
-        throw std::runtime_error("delete nullptr error for free protobuf veBatch memory");
+        throw std::runtime_error("delete nullptr error for free protobuf vecBatch memory");
     }
     delete vecBatchProto; //free protobuf vecBatch memory
     return 0;

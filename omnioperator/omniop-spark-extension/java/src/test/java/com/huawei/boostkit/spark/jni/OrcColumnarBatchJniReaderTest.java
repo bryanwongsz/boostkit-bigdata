@@ -18,28 +18,65 @@
 
 package com.huawei.boostkit.spark.jni;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
 import junit.framework.TestCase;
+import nova.hetu.omniruntime.type.DataType;
 import nova.hetu.omniruntime.vector.IntVec;
 import nova.hetu.omniruntime.vector.LongVec;
 import nova.hetu.omniruntime.vector.VarcharVec;
+import nova.hetu.omniruntime.vector.Vec;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.hadoop.hive.q1.io.sarg.SearchArgument;
+import org.apache.hadoop.hive.q1.io.sarg.SearchArgumentImpl;
+import org.apache.orc.OrcConf;
+import org.apache.orc.OrcFile;
+import org.apache.orc.Reader;
+import org.apache.orc.TypeDescription;
+import org.apache.orc.mapred.OrcInputFormat;
 import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-
+import org.apache.hadoop.conf.Configuration;
 import java.io.File;
 import java.util.ArrayList;
+import org.apache.orc.Reader.Options;
 
 import static org.junit.Assert.*;
 
 @FixMethodOrder(value = MethodSorters.NAME_ASCENDING )
-public class OrcColumnarBatchJniReaderSparkORCNotPushDownTest extends TestCase {
+public class OrcColumnarBatchJniReaderTest extends TestCase {
+    public Configuration conf = new Configuration();
     public OrcColumnarBatchJniReader orcColumnarBatchJniReader;
+    public int batchSize = 4096;
 
     @Before
     public void setUp() throws Exception {
+        Configuration conf = new Configuration();
+        TypeDescription schema =
+                TypeDescription.fromString("struct<`i_item_sk`:bigint,`i_item_id`:string>");
+        Options options = new Options(conf)
+                .range(0, Integer.MAX_VALUE)
+                .useZeroCopy(false)
+                .skipCorruptRecords(false)
+                .tolerateMissingSchema(true);
+
+        options.schema(schema);
+        options.include(OrcInputFormat.parseInclude(schema,
+                null));
+        String kryoSarg = "AQEAb3JnLmFwYWNoZs5oYWRvb3AuaG12AS5xbC5pby5zYXJnLKV4cHJ1c3Npb25UcmX1AQEBamF2YS51dGlsLkFycmF5TGlz9AECAQABEBAQEAAQAAAAEEAAEAwEAAQEBAQEBAAEAAAIIAAEJAAEBAgEBAQIBAscBb3JnLmFwYWNoZS5oYWRvb3AuaGl2ZS5xbC5pby5zYXJnLlNlYXJiaEFyZ3VtZW50SW1wbCRQcmVkaWNhdGVMZWFmSW1wbAEBaV9bdGVtX3PrAAABBwEBAQIBEAkAAAEEEg==";
+        String sargColumns = "i_item_sk,i_item_id,i_rec_start_date,i_rec_end_date,i_item_desc,i_current_price,i_wholesale_cost,i_brand_id,i_class_id,i_class,i_category_id,i_category,i_manufact_id,i_manufact,i_size,i_formulation,i_color,i_units,i_container,i_manager_id,i_product_name";
+        if (kryoSarg != null && sargColumns != null) {
+            byte[] sargBytes = Base64.decodeBase64(kryoSarg);
+            SearchArgument sarg =
+                    new Kryo().readObject(new Input(sargBytes), SearchArgumnetImpl.class);
+            options.searchArgument(sarg, sargColumns.split(","));
+            sarg.getExpression().toString();
+        }
+
         orcColumnarBatchJniReader = new OrcColumnarBatchJniReader();
         initReaderJava();
         initRecordReaderJava();
@@ -52,32 +89,14 @@ public class OrcColumnarBatchJniReaderSparkORCNotPushDownTest extends TestCase {
     }
 
     public void initReaderJava() {
-        JSONObject job = new JSONObject();
-        job.put("serializedTail","");
-        job.put("tailLocation",9223372036854775807L);
-        File directory = new File("src/test/java/com/huawei/boostkit/spark/jni/orcsrc/part-00000-2d6ca713-08b0-4b40-828c-f7ee0c81bb9a-c000.snappy.orc");
+        OrcFile.ReaderOptions readerOptions = OrcFile.ReaderOptions(conf);
+        File directory = new File("src/test/java/com/huawei/boostkit/spark/jni/orcsrc/000000_0");
         System.out.println(directory.getAbsolutePath());
         orcColumnarBatchJniReader.reader = orcColumnarBatchJniReader.initializeReader(directory.getAbsolutePath(), job);
         assertTrue(orcColumnarBatchJniReader.reader != 0);
     }
 
     public void initRecordReaderJava() {
-        JSONObject job = new JSONObject();
-        job.put("include","");
-        job.put("offset", 0);
-        job.put("length", 3345152);
-
-        ArrayList<String> includedColumns = new ArrayList<String>();
-        // type long
-        includedColumns.add("i_item_sk");
-        // type char 16
-        includedColumns.add("i_item_id");
-        // type char 200
-        includedColumns.add("i_item_desc");
-        // type int
-        includedColumns.add("i_current_price");
-        job.put("includedColumns", includedColumns.toArray());
-
         orcColumnarBatchJniReader.recordReader = orcColumnarBatchJniReader.initializeRecordReader(orcColumnarBatchJniReader.reader, job);
         assertTrue(orcColumnarBatchJniReader.recordReader != 0);
     }
@@ -89,20 +108,12 @@ public class OrcColumnarBatchJniReaderSparkORCNotPushDownTest extends TestCase {
 
     @Test
     public void testNext() {
-        int[] typeId = new int[4];
-        long[] vecNativeId = new long[4];
-        long rtn = orcColumnarBatchJniReader.recordReaderNext(orcColumnarBatchJniReader.recordReader, orcColumnarBatchJniReader.reader, orcColumnarBatchJniReader.batchReader, typeId, vecNativeId);
+        Vec[] vecs = new Vec[2];
+        long rtn = orcColumnarBatchJniReader.next(vecs);
         assertTrue(rtn == 4096);
-        LongVec vec1 = new LongVec(vecNativeId[0]);
-        VarcharVec vec2 = new VarcharVec(vecNativeId[1]);
-        VarcharVec vec3 = new VarcharVec(vecNativeId[2]);
-        IntVec vec4 = new IntVec(vecNativeId[3]);
-
-        assertTrue(vec1.get(4095) == 4096);
-        String tmp1 = new String(vec2.get(4095));
-        assertTrue(tmp1.equals("AAAAAAAAAAABAAAA"));
-        String tmp2 = new String(vec3.get(4095));
-        assertTrue(tmp2.equals("Find"));
-        assertTrue(vec4.get(4095) == 6);
+        assertTrue(((LongVec) vecs[0]).get(0) == 1);
+        String str = new String(((VarcharVec) vecs[1]).get(0));
+        assertTrue(str.equals("AAAAAAABAAAAAAA"));
     }
+
 }

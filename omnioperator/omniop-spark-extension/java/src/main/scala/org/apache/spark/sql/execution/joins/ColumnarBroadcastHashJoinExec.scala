@@ -62,7 +62,7 @@ case class ColumnarBroadcastHashJoinExec(
                                   left: SparkPlan,
                                   right: SparkPlan,
                                   isNullAwareAntiJoin: Boolean = false)
-  extends HashJoin with CodegenSupport {
+  extends HashJoin {
 
   if (isNullAwareAntiJoin) {
     require(leftKeys.length == 1, "leftKeys length should be 1")
@@ -203,7 +203,7 @@ case class ColumnarBroadcastHashJoinExec(
     buildTypes(i) = OmniExpressionAdaptor.sparkTypeToOmniType(att.dataType, att.metadata)
     }
 
-    buildKeys.map { x =>
+    val buildJoinColsExp: Array[AnyRef] = buildKeys.map { x =>
       OmniExpressionAdaptor.rewriteToOmniJsonExpressionLiteral(x,
         OmniExpressionAdaptor.getExprIdMap(buildOutput.map(_.toAttribute)))
     }.toArray

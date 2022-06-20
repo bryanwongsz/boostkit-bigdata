@@ -1,3 +1,21 @@
+/*
+ * Copyrights (C) 2020-2022 Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.huawei.boostkit.spark.jni;
 
 import junit.framework.TestCase;
@@ -6,7 +24,7 @@ import nova.hetu.omniruntime.vector.IntVec;
 import nova.hetu.omniruntime.vector.LongVec;
 import nova.hetu.omniruntime.vector.VarcharVec;
 import nova.hetu.omniruntime.vector.Vec;
-import org.json.JSONObjet;
+import org.json.JSONObject;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
@@ -39,7 +57,7 @@ public class OrcColumnarBatchJniReaderSparkORCPushDownTest extends TestCase {
         JSONObject job = new JSONObject();
         job.put("serializedTail","");
         job.put("tailLocation",9223372036854775807L);
-        File directory = new File("src/test/java/com/huawei/boostkit/spark/jni/orcsrc/part-00000-2d6ca713-08b0-828c-f7ee0c81bb9a-c000.snappy.orc");
+        File directory = new File("src/test/java/com/huawei/boostkit/spark/jni/orcsrc/part-00000-2d6ca713-08b0-4b40-828c-f7ee0c81bb9a-c000.snappy.orc");
         System.out.println(directory.getAbsolutePath());
         orcColumnarBatchJniReader.reader = orcColumnarBatchJniReader.initializeReader(directory.getAbsolutePath(), job);
         assertTrue(orcColumnarBatchJniReader.reader != 0);
@@ -73,7 +91,7 @@ public class OrcColumnarBatchJniReaderSparkORCPushDownTest extends TestCase {
         childs.add(subChild1);
         childs.add(subChild2);
 
-        JSONOBject expressionTree = new JSONObject();
+        JSONObject expressionTree = new JSONObject();
         expressionTree.put("op", 1);
         expressionTree.put("child", childs);
         job.put("expressionTree", expressionTree);

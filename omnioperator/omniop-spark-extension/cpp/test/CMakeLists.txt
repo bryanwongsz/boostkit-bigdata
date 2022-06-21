@@ -4,14 +4,14 @@ add_subdirectory(tablescan)
 
 # configure
 set(TP_TEST_TARGET tptest)
-set(My_LINK
+set(MY_LINK
         utilstest
         shuffletest
         tablescantest
         )
 
 # find gtest package
-find_package(Gtest REQUIRED)
+find_package(GTest REQUIRED)
 
 set (UT_FILES
         tptest.cpp

@@ -1,4 +1,4 @@
-# Project name
+# project name
 project(spark-thestral-plugin)
 
 # required cmake version
@@ -22,7 +22,7 @@ include_directories(SYSTEM src)
 # compile library
 add_subdirectory(src)
 
-message(STTATUS "Build by ${CMAKE_BUILD_TYPE}")
+message(STATUS "Build by ${CMAKE_BUILD_TYPE}")
 
 option(BUILD_CPP_TESTS "test" ON)
 message(STATUS "Option BUILD_CPP_TESTS: ${BUILD_CPP_TESTS}")

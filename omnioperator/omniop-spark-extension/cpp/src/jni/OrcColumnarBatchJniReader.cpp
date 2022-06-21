@@ -6,7 +6,7 @@
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- *  with the License.  You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -339,7 +339,7 @@ uint64_t copyVarwidth(int maxLen, orc::ColumnVectorBatch *field, int vcType)
     for (int i = 0; i < lvb->numElements; i++) {
         if (lvb->notNull.data()[i]) {
             string tmpStr(reinterpret_cast<const char *>(lvb->data.data()[i]), lvb->length.data()[i]);
-            if (vcType == orc::TypeKind::CHAR && tmpStr.back() == '.') {
+            if (vcType == orc::TypeKind::CHAR && tmpStr.back() == ' ') {
                 tmpStr.erase(tmpStr.find_last_not_of(" ") + 1);
             }
             originalVector->SetValue(i, reinterpret_cast<const uint8_t *>(tmpStr.data()), tmpStr.length());

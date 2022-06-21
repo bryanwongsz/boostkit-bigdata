@@ -44,7 +44,7 @@ public class OmniColumnVectorTest extends TestCase {
 
     @After
     public void tearDown() throws Exception {
-        System.out.println("OmniColumnarVectorTest test finished");
+        System.out.println("OmniColumnVectorTest test finished");
     }
 
 
@@ -58,7 +58,7 @@ public class OmniColumnVectorTest extends TestCase {
         assertTrue(vecTmp.getVec() != null);
         vecTmp.close();
 
-        OmniColumnVector vecTmp1 = new OmniColumnVector(4096, DataTypes.IntrgerType, true);
+        OmniColumnVector vecTmp1 = new OmniColumnVector(4096, DataTypes.IntegerType, true);
         IntVec vecInt = new IntVec(4096);
         vecTmp1.setVec(vecInt);
         vecTmp1.putInt(0, 123);

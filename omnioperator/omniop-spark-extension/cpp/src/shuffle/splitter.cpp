@@ -6,7 +6,7 @@
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- *  with the License.  You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -773,8 +773,8 @@ int Splitter::protoSpillPartition(int32_t partition_id, std::unique_ptr<Buffered
         uint32_t vecBatchProtoSize = reversebytes_uint32t(vecBatchProto->ByteSize());
         void *buffer = nullptr;
         if (!bufferStream->NextNBytes(&buffer, sizeof(vecBatchProtoSize))) {
-            LogsError("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
-            throw std::runtime_error("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
+            LogsError("Allocate Memory Failed: Flush Spilled Data, Next failed.");
+            throw std::runtime_error("Allocate Memory Failed: Flush Spilled Data, Next failed.");
         }
         // set serizalized bytes to stream
         memcpy(buffer, &vecBatchProtoSize, sizeof(vecBatchProtoSize));

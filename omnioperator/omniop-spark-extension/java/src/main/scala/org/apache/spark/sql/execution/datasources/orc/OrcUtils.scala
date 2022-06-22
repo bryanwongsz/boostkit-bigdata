@@ -84,7 +84,7 @@ object OrcUtils extends Logging {
    private def toCatalystSchema(schema: TypeDescription): StructType = {
        // The Spark query engine has not completely supported CHAR/VARCHAR type yet, and here we 
        // replace the orc CHAR/VARCHAR with STRING type.
-       CharVarCharUtils.replaceCharVarCharWithStringInSchema(
+       CharVarcharUtils.replaceCharVarcharWithStringInSchema(
          CatalystSqlParser.parseDataType(schema.toString).asInstanceOf[StructType])
    }
 

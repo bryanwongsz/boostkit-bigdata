@@ -147,7 +147,7 @@ public class OmniOrcColumnarBatchReader extends RecordReader<Void, ColumnarBatch
       int[] requestedDataColIds,
       int[] requestedPartitionColIds,
       InternalRow partitionValues) {
-    // wrap = new VectorizedRowBatchWrap(orcSchema.createRowBatch(capacity));
+    // wrap = new orcShimUtils.VectorizedRowBatchWrap(orcSchema.createRowBatch(capacity));
     // assert(!wrap.batch().selectedInUse); // `selectedInUse` should be initialized with `false`.
     assert(requiredFields.length == requestedDataColIds.length);
     assert(requiredFields.length == requestedPartitionColIds.length);

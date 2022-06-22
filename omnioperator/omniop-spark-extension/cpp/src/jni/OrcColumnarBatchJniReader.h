@@ -65,7 +65,7 @@ enum class PredicateOperatorType {
 };
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      initializeReader
  * Signature:   (Ljava/lang/String;Lorg/json/simple/JSONObject;)J
  */
@@ -73,7 +73,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRe
         (JNIEnv* env, jobject jObj, jstring path, jobject job);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      initializeRecordReader
  * Signature:   (JLorg/json/simple/JSONObject;)J
  */
@@ -81,7 +81,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRe
         (JNIEnv* env, jobject jObj, jlong reader, jobject job);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      initializeRecordReader
  * Signature:   (JLorg/json/simple/JSONObject;)J
  */
@@ -89,7 +89,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRe
         (JNIEnv* env, jobject jObj, jlong rowReader, jlong batchSize);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      recordReaderNext
  * Signature:   (J[I[J)J
  */
@@ -97,7 +97,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRe
         (JNIEnv *, jobject, jlong, jlong, jlong, jintArray, jlongArray);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      recordReaderGetRowNumber
  * Signature:   (J)J
  */
@@ -105,7 +105,7 @@ JNIEXPORT jlong JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRe
         (JNIEnv *, jobject, jlong);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      recordReaderGetProgress
  * Signature:   (J)F
  */
@@ -114,7 +114,7 @@ JNIEXPORT jfloat JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniR
 
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      recordReaderClose
  * Signature:   (J)F
  */
@@ -122,7 +122,7 @@ JNIEXPORT void JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRea
         (JNIEnv *, jobject, jlong, jlong, jlong);
 
 /*
- * Class:       come_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
+ * Class:       com_huawei_boostkit_spark_jni_OrcColumnarBatchJniReader
  * Method:      recordReaderSeekToRow
  * Signature:   (JJ)F
  */

@@ -35,7 +35,7 @@ class ColumnShuffleSerializerDisableCompressSuite extends SparkFunSuite with Sha
   override def sparkConf: SparkConf =
     super.sparkConf
       .setAppName("test ColumnarShuffleDeSerializer disable compressed")
-      .set("Spark.shuffle.compress", "false")
+      .set("spark.shuffle.compress", "false")
 
   override def beforeEach(): Unit = {
     avgBatchNumRows = SQLMetrics.createAverageMetric(spark.sparkContext,

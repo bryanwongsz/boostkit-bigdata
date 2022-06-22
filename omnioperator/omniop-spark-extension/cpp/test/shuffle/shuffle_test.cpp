@@ -26,7 +26,7 @@ static std::string tmpShuffleFilePath;
 class ShuffleTest : public testing::Test {
 protected:
 
-    // run before fist case...
+    // run before first case...
     static void SetUpTestSuite() {
         tmpTestingDir = s_shuffle_tests_dir;
         if (!IsFileExist(tmpTestingDir)) {

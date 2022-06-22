@@ -6,7 +6,7 @@
  * regarding copyright ownership.  The ASF licenses this file
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
- *  with the License.  You may obtain a copy of the License at
+ * with the License.  You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
@@ -381,7 +381,7 @@ int Splitter::DoSplit(VectorBatch& vb) {
         }
     }
 
-    // prepare partiiton buffers and spill if necessary
+    // prepare partition buffers and spill if necessary
     for (auto pid = 0; pid < num_partitions_; ++pid) {
         if (fixed_width_array_idx_.size() > 0 &&
             partition_id_cnt_cur_[pid] > 0 &&
@@ -500,7 +500,7 @@ int Splitter::Split_Init(){
 
     // Both data_file and shuffle_index_file should be set through jni.
     // For test purpose, Create a temporary subdirectory in the system temporary
-    // dir with prefix "xolumnar-shuffle"
+    // dir with prefix "columnar-shuffle"
     if (options_.data_file.length() == 0) {
         options_.data_file = CreateTempShuffleFile(configured_dirs_[0]);
     }
@@ -676,7 +676,7 @@ int Splitter::SerializingFixedColumns(int32_t partitionId,
                 memcpy((uint8_t*)(ptr_value->data_) + destCopyedLength,
                     partition_cached_vectorbatch_[partitionId][splitRowInfoTmp->cacheBatchIndex[fixColIndexTmp]][fixColIndexTmp][1]->data_ + splitRowInfoTmp->cacheBatchCopyedLen[fixColIndexTmp],
                     memCopyLen);
-                // (destCOpyEdLength / (1 << column_type_id_[colIndexTmpSchema])) 等比例计算null数组偏移
+                // (destCopyedLength / (1 << column_type_id_[colIndexTmpSchema])) 等比例计算null数组偏移
                 memcpy((uint8_t*)(ptr_validity->data_) + (destCopyedLength / (1 << column_type_id_[colIndexTmpSchema])),
                     partition_cached_vectorbatch_[partitionId][splitRowInfoTmp->cacheBatchIndex[fixColIndexTmp]][fixColIndexTmp][0]->data_ + (splitRowInfoTmp->cacheBatchCopyedLen[fixColIndexTmp] / (1 << column_type_id_[colIndexTmpSchema])),
                     memCopyLen / (1 << column_type_id_[colIndexTmpSchema]));
@@ -773,8 +773,8 @@ int Splitter::protoSpillPartition(int32_t partition_id, std::unique_ptr<Buffered
         uint32_t vecBatchProtoSize = reversebytes_uint32t(vecBatchProto->ByteSize());
         void *buffer = nullptr;
         if (!bufferStream->NextNBytes(&buffer, sizeof(vecBatchProtoSize))) {
-            LogsError("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
-            throw std::runtime_error("Allocate Memory Failed: Flush Spilled Data, Next failed.!");
+            LogsError("Allocate Memory Failed: Flush Spilled Data, Next failed.");
+            throw std::runtime_error("Allocate Memory Failed: Flush Spilled Data, Next failed.");
         }
         // set serizalized bytes to stream
         memcpy(buffer, &vecBatchProtoSize, sizeof(vecBatchProtoSize));

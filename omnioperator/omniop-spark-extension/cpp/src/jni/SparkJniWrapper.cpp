@@ -169,7 +169,7 @@ Java_com_huawei_boostkit_spark_jni_SparkJniWrapper_nativeMake(
 
 JNIEXPORT jlong JNICALL
 Java_com_huawei_boostkit_spark_jni_SparkJniWrapper_split(
-    JNIEnv* env, jobject jObj, jlong splitter_id, jlong jVecBatchAddress) {
+    JNIEnv *env, jobject jObj, jlong splitter_id, jlong jVecBatchAddress) {
     auto splitter = shuffle_splitter_holder_.Lookup(splitter_id);
     if (!splitter) {
         std::string error_message = "Invalid splitter id " + std::to_string(splitter_id);

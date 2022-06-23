@@ -123,7 +123,7 @@ public class OmniOrcColumnarBatchReader extends RecordReader<Void, ColumnarBatch
     OrcFile.ReaderOptions readerOptions = OrcFile.readerOptions(conf)
         .maxLength(OrcConf.MAX_FILE_LENGTH.getLong(conf))
         .filesystem(fileSplit.getPath().getFileSystem(conf));
-//  long reader = OrcColumnarNativeReader.initializeReaderJava(fileSplit.getpath(), readerOptions);
+//  long reader = OrcColumnarNativeReader.initializeReaderJava(fileSplit.getPath(), readerOptions);
     Reader.Options options =
       OrcColumnarNativeReader.buildOptions(conf, fileSplit.getStart(), fileSplit.getLength());
     recordReader = new OrcColumnarBatchJniReader();
@@ -147,7 +147,7 @@ public class OmniOrcColumnarBatchReader extends RecordReader<Void, ColumnarBatch
       int[] requestedDataColIds,
       int[] requestedPartitionColIds,
       InternalRow partitionValues) {
-    // wrap = new orcShimUtils.VectorizedRowBatchWrap(orcSchema.createRowBatch(capacity));
+    // wrap = new OrcShimUtils.VectorizedRowBatchWrap(orcSchema.createRowBatch(capacity));
     // assert(!wrap.batch().selectedInUse); // `selectedInUse` should be initialized with `false`.
     assert(requiredFields.length == requestedDataColIds.length);
     assert(requiredFields.length == requestedPartitionColIds.length);

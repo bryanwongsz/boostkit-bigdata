@@ -79,7 +79,7 @@ namespace spark {
     return static_cast<google::protobuf::int64>(dataBuffer->size());
   }
 
-  bool BufferedOutputStream::WriteAliasedRaw(const void*, int) {
+  bool BufferedOutputStream::WriteAliasedRaw(const void *, int) {
     throw std::logic_error("WriteAliasedRaw is not supported.");
   }
 

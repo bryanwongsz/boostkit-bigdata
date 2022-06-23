@@ -88,7 +88,7 @@ namespace spark {
   DataBuffer<unsigned char>::~DataBuffer();
 
   template <>
-  void DataBuffer<unsigned char>::resize(uint64_t new Size);
+  void DataBuffer<unsigned char>::resize(uint64_t newSize);
 
   #ifdef __clang__
     #pragma clang diagnostic push

@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2022-2022. All rights reserved.
+ */
+
 select
     c_last_name,
     c_first_name,
@@ -19,7 +23,7 @@ from
         household_demographics
     where
         store_sales.ss_sold_date_sk = date_dim.d_date_sk
-        and store_sales.ss_store_sk = store.ss_store_sk
+        and store_sales.ss_store_sk = store.s_store_sk
         and store_sales.ss_hdemo_sk = household_demographics.hd_demo_sk
         and (household_demographics.hd_dep_count = 8
             or household_demographics.hd_vehicle_count > 0)
@@ -28,8 +32,8 @@ from
         and store.s_number_employees between 200 and 295
         and ss_sold_date_sk between 2450819 and 2451904
         -- partition key filter
-        -- and ss_sold_date_sk in (2450819, 2450826, 2450833, 2450840, 2450847, 2450854, 2450861, 2450868, 2450875,2450882, 2450889,
-        -- 2450896, 2450903, 2450910, 2450917, 2450924, 2450931, 2450938, 2450945 ,2450952, 2450959, 2450966, 2450973, 2450980, 2450987,
+        -- and ss_sold_date_sk in (2450819, 2450826, 2450833, 2450840, 2450847, 2450854, 2450861, 2450868, 2450875, 2450882, 2450889,
+        -- 2450896, 2450903, 2450910, 2450917, 2450924, 2450931, 2450938, 2450945, 2450952, 2450959, 2450966, 2450973, 2450980, 2450987,
         -- 2450994, 2451001, 2451008, 2451015, 2451022, 2451029, 2451036, 2451043, 2451050, 2451057, 2451064, 2451071, 2451078, 2451085,
         -- 2451092, 2451099, 2451106, 2451113, 2451120, 2451127, 2451134, 2451141, 2451148, 2451155, 2451162, 2451169, 2451176, 2451183,
         -- 2451190, 2451197, 2451204, 2451211, 2451218, 2451225, 2451232, 2451239, 2451246, 2451253, 2451260, 2451267, 2451274, 2451281,
@@ -48,11 +52,11 @@ from
     ) ms,
     customer
  where
-    ss_customer_sk = c_customer_ss_customer_sk
+    ss_customer_sk = c_customer_sk
  order by
     c_last_name,
     c_first_name,
-    substr(s_city,1,30)
+    substr(s_city,1,30),
     profit
     limit 100;
 

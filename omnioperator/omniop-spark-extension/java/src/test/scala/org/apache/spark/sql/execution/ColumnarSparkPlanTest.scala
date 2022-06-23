@@ -50,7 +50,7 @@ private[sql] abstract class ColumnarSparkPlanTest extends SparkPlanTest with Sha
     QueryTest.checkAnswer(analyzedDF, expectedAnswer)
   }
 
-  private def assertEmptyMissingInput(query: DataSet[_]): Unit = {
+  private def assertEmptyMissingInput(query: Dataset[_]): Unit = {
     assert(query.queryExecution.analyzed.missingInput.isEmpty,
       s"The analyzed logical plan has missing inputs:\n${query.queryExecution.analyzed}")
     assert(query.queryExecution.optimizedPlan.missingInput.isEmpty,

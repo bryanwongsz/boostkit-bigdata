@@ -1,7 +1,3 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2022-2022. All rights reserved.
- */
-
 with v1 as (
  select i_category, i_brand,
         s_store_name, s_company_name,
@@ -21,18 +17,18 @@ with v1 as (
        ss_store_sk = s_store_sk and
        (
          d_year = 2000 or
-         ( d_year = 2000-1 and d_moy = 12) or
-         ( d_year = 2000+1 and d_moy = 1)
+         ( d_year = 2000-1 and d_moy =12) or
+         ( d_year = 2000+1 and d_moy =1)
        )
- group by i_category, i_brand,
-          s_store_name, s_company_name,
-          d_year, d_moy),
- v2 as (
- select v1.i_category,v1.i_brand
+ group by i_category, i_brand, 
+          s_store_name, s_company_name, 
+          d_year, d_moy), 
+ v2 as( 
+ select v1.i_category, v1.i_brand
         ,v1.d_year
         ,v1.avg_monthly_sales
         ,v1.sum_sales, v1_lag.sum_sales psum, v1_lead.sum_sales nsum
- from v1, v1 v1_lag, v1 v1_lead
+ from v1, v1 v1_lag, v1 v1_lead 
  where v1.i_category = v1_lag.i_category and
        v1.i_category = v1_lead.i_category and
        v1.i_brand = v1_lag.i_brand and

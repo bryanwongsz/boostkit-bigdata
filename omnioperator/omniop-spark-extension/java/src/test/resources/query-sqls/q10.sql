@@ -1,7 +1,3 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2022-2022. All rights reserved.
- */
-
 select
     i_brand_id brand_id,
     i_brand brand,

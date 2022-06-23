@@ -1,6 +1,21 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+ * Copyright (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.huawei.boostkit.spark.jni;
 
 import org.slf4j.Logger;
@@ -36,26 +51,27 @@ public class NativeLoader {
     }
 
     private NativeLoader() {
+        File tempFile = null; 
         try {
-            String nativeLibraryPath = File.separator +
-                    System.mapLibraryName(LIBRARY_NAME);
-            InputStream in = NativeLoader.class.getResourceAsStream(nativeLibraryPath);
-            File tempFile = File.createTempFile(LIBRARY_NAME, ".so");
-            FileOutputStream fos = new FileOutputStream(tempFile);
-            int i;
-            byte[] buf = new byte[BUFFER_SIZE];
-            while ((i = in.read(buf)) != -1) {
-                fos.write(buf, 0, i);
+            String nativeLibraryPath = File.separator + System.mapLibraryName(LIBRARY_NAME);
+            tempFile = File.createTempFile(LIBRARY_NAME, ".so");
+            try (InputStream in = NativeLoader.class.getResourceAsStream(nativeLibraryPath);
+                FileOutputStream fos = new FileOutputStream(tempFile)) {
+                int i;
+                byte[] buf = new byte[BUFFER_SIZE];
+                while ((i = in.read(buf)) != -1) {
+                    fos.write(buf, 0, i);
+                }
+                System.load(tempFile.getCanonicalPath());
+                NativeLog.getInstance();
             }
-            in.close();
-            fos.close();
-            System.load(tempFile.getAbsolutePath());
-            NativeLog.getInstance();
-            tempFile.deleteOnExit();
         } catch (IOException e) {
             LOG.warn("fail to load library from Jar!errmsg:{}", e.getMessage());
             System.loadLibrary(LIBRARY_NAME);
+        } finally {
+            if (tempFile != null) {
+                tempFile.deleteOnExit();
+            }
         }
     }
-
 }

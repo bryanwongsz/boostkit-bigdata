@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.spark.sql.execution.datasources.orc
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -33,7 +32,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SPARK_VERSION_METADATA_KEY, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.caseSensitiveResolution
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
-import org.apache.spark.sql.catalyst.util.{quoteIdentifier, CharVarCharUtils}
+import org.apache.spark.sql.catalyst.util.{quoteIdentifier, CharVarcharUtils}
 import org.apache.spark.sql.execution.datasources.SchemaMergeUtils
 import org.apache.spark.sql.types._
 import org.apache.spark.util.{ThreadUtils, Utils}
@@ -66,7 +65,7 @@ object OrcUtils extends Logging {
       val schema = Utils.tryWithResource(OrcFile.createReader(file, readerOptions)) { reader =>
         reader.getSchema
       }
-      if (schema.getFieldNames.size == 0) {
+      if (schema.getFieldNames.isEmpty) {
         None
       } else {
         Some(schema)
@@ -85,7 +84,7 @@ object OrcUtils extends Logging {
    private def toCatalystSchema(schema: TypeDescription): StructType = {
        // The Spark query engine has not completely supported CHAR/VARCHAR type yet, and here we 
        // replace the orc CHAR/VARCHAR with STRING type.
-       CharVarCharUtils.replaceCharVarCharWithStringInSchema(
+       CharVarcharUtils.replaceCharVarcharWithStringInSchema(
          CatalystSqlParser.parseDataType(schema.toString).asInstanceOf[StructType])
    }
 

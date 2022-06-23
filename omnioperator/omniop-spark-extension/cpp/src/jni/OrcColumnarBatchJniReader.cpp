@@ -1,5 +1,20 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+/**
+ * Copyright (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #include "OrcColumnarBatchJniReader.h"
@@ -116,10 +131,6 @@ int getLiteral(orc::Literal &lit, int leafType, string value)
             lit = orc::Literal(static_cast<int64_t>(std::stol(value)));
             break;
         }
-        case orc::PredicateDataType::FLOAT: {
-            lit = orc::Literal(static_cast<double>(std::stod(value)));
-            break;
-        }
         case orc::PredicateDataType::STRING: {
             lit = orc::Literal(value.c_str(), value.size());
             break;
@@ -135,7 +146,8 @@ int getLiteral(orc::Literal &lit, int leafType, string value)
             while (tmpAllStr >> tmpStr) {
                 valList.push_back(tmpStr);
             }
-            lit = orc::Literal(Int128(valList[0]), static_cast<int32_t>(std::stoi(valList[1])),
+            Decimal decimalVal(valList[0]);
+            lit = orc::Literal(decimalVal.value, static_cast<int32_t>(std::stoi(valList[1])),
                 static_cast<int32_t>(std::stoi(valList[2])));
             break;
         }
@@ -317,7 +329,7 @@ template <DataTypeId TYPE_ID, typename ORC_TYPE> uint64_t copyFixwidth(orc::Colu
 }
 
 
-uint64_t copyVarwidth(int maxLen, orc::ColumnVectorBatch *field)
+uint64_t copyVarwidth(int maxLen, orc::ColumnVectorBatch *field, int vcType)
 {
     VectorAllocator *allocator = omniruntime::vec::GetProcessGlobalVecAllocator();
     orc::StringVectorBatch *lvb = dynamic_cast<orc::StringVectorBatch *>(field);
@@ -327,6 +339,9 @@ uint64_t copyVarwidth(int maxLen, orc::ColumnVectorBatch *field)
     for (int i = 0; i < lvb->numElements; i++) {
         if (lvb->notNull.data()[i]) {
             string tmpStr(reinterpret_cast<const char *>(lvb->data.data()[i]), lvb->length.data()[i]);
+            if (vcType == orc::TypeKind::CHAR && tmpStr.back() == ' ') {
+                tmpStr.erase(tmpStr.find_last_not_of(" ") + 1);
+            }
             originalVector->SetValue(i, reinterpret_cast<const uint8_t *>(tmpStr.data()), tmpStr.length());
         } else {
             originalVector->SetValueNull(i);
@@ -357,7 +372,7 @@ int copyToOminVec(int maxLen, int vcType, int &ominTypeId, uint64_t &ominVecId, 
         case orc::TypeKind::STRING:
         case orc::TypeKind::VARCHAR: {
             ominTypeId = static_cast<int>(OMNI_VARCHAR);
-            ominVecId = (uint64_t)copyVarwidth(maxLen, field);
+            ominVecId = (uint64_t)copyVarwidth(maxLen, field, vcType);
             break;
         }
         default: {
@@ -377,7 +392,20 @@ int copyToOminDecimalVec(int vcType, int &ominTypeId, uint64_t &ominVecId, orc::
             new FixedWidthVector<OMNI_DECIMAL128>(allocator, lvb->numElements);
         for (int i = 0; i < lvb->numElements; i++) {
             if (lvb->notNull.data()[i]) {
-                Decimal128 d128(lvb->values.data()[i].getHighBits(), lvb->values.data()[i].getLowBits());
+                bool wasNegative = false;
+                int64_t highbits = lvb->values.data()[i].getHighBits();
+                uint64_t lowbits = lvb->values.data()[i].getLowBits();
+                uint64_t high = 0;
+                uint64_t low = 0;
+                if (highbits < 0) {
+                    low = ~lowbits + 1;
+                    high = static_cast<uint64_t>(~highbits);
+                    if (low == 0) {
+                        high += 1;
+                    }
+                    highbits = high | ((uint64_t)1 << 63);
+                }
+                Decimal128 d128(highbits, low);
                 originalVector->SetValue(i, d128);
             } else {
                 originalVector->SetValueNull(i);
@@ -472,10 +500,19 @@ JNIEXPORT void JNICALL Java_com_huawei_boostkit_spark_jni_OrcColumnarBatchJniRea
     jobject jObj, jlong rowReader, jlong reader, jlong batchReader)
 {
     orc::ColumnVectorBatch *columnVectorBatch = (orc::ColumnVectorBatch *)batchReader;
+    if (nullptr == columnVectorBatch) {
+        throw std::runtime_error("delete nullptr error for batch reader");
+    }
     delete columnVectorBatch;
     orc::RowReader *rowReaderPtr = (orc::RowReader *)rowReader;
+    if (nullptr == rowReaderPtr) {
+        throw std::runtime_error("delete nullptr error for row reader");
+    }
     delete rowReaderPtr;
     orc::Reader *readerPtr = (orc::Reader *)reader;
+    if (nullptr == readerPtr) {
+        throw std::runtime_error("delete nullptr error for reader");
+    }
     delete readerPtr;
 }
 

@@ -61,8 +61,9 @@ case class ColumnarProjectExec(projectList: Seq[NamedExpression], child: SparkPl
     val omniAttrExpsIdMap = getExprIdMap(child.output)
     child.output.map(
       exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
-    projectList.map(
+    val omniExpressions: Array[AnyRef] = projectList.map(
       exp => rewriteToOmniJsonExpressionLiteral(exp, omniAttrExpsIdMap)).toArray
+    checkOmniJsonWhiteList("", omniExpressions)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -171,9 +172,8 @@ case class ColumnarFilterExec(condition: Expression, child: SparkPlan)
     val omniAttrExpsIdMap = getExprIdMap(child.output)
     child.output.map(
       exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
-    child.output.map(
-      exp => omniAttrExpsIdMap(exp.exprId)).toArray
-    rewriteToOmniJsonExpressionLiteral(condition, omniAttrExpsIdMap)
+    val filterExpression = rewriteToOmniJsonExpressionLiteral(condition, omniAttrExpsIdMap)
+    checkOmniJsonWhiteList(filterExpression, new Array[AnyRef](0))
   }
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -412,6 +412,7 @@ class ColumnarRangeExec(range: org.apache.spark.sql.catalyst.plans.logical.Range
 
   private val maxRowCountPerBatch = 10000
   override def supportsColumnar: Boolean = true
+  override def supportCodegen: Boolean = false
 
   protected override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("numOutputRows")

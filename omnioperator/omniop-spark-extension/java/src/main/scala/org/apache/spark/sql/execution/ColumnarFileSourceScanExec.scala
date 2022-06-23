@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.spark.sql.execution
 
 import java.util.Optional
@@ -53,7 +54,7 @@ import org.apache.spark.sql.execution.util.SparkMemoryUtils
 import org.apache.spark.sql.execution.util.SparkMemoryUtils.addLeakSafeTaskCompletionListener
 import org.apache.spark.sql.execution.vectorized.OmniColumnVector
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DecimalType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
@@ -288,7 +289,7 @@ abstract class BaseColumnarFileSourceScanExec(
       case orcFormat: OrcFileFormat =>
         new OmniOrcFileFormat()
       case _ =>
-        throw new RuntimeException("Unsupported FileFormat!")
+        throw new UnsupportedOperationException("Unsupported FileFormat!")
     }
     val readFile: (PartitionedFile) => Iterator[InternalRow] =
       fileFormat.buildReaderWithPartitionValues(
@@ -370,10 +371,15 @@ abstract class BaseColumnarFileSourceScanExec(
   }
 
   def buildCheck(): Unit = {
-    val inputTypes = new Array[DataType](output.size)
     output.zipWithIndex.foreach {
       case (attr, i) =>
-        inputTypes(i) = sparkTypeToOmniType(attr.dataType, attr.metadata)
+         sparkTypeToOmniType(attr.dataType, attr.metadata)
+         if (attr.dataType.isInstanceOf[DecimalType]) {
+           val dt = attr.dataType.asInstanceOf[DecimalType]
+           if (!DecimalType.is64BitDecimalType(dt)) {
+             throw new UnsupportedOperationException(s"ColumnarTableScan is not supported for type:${dt}");
+           }
+         }
     }
   }
 
@@ -530,7 +536,7 @@ abstract class BaseColumnarFileSourceScanExec(
     var omniAggindex = 0
     for (exp <- agg.aggregateExpressions) {
       if (exp.mode == Final) {
-        throw new RuntimeException(s"Unsupported final aggregate expression in operator fusion, exp: $exp")
+        throw new UnsupportedOperationException(s"Unsupported final aggregate expression in operator fusion, exp: $exp")
       } else if (exp.mode == Partial) {
         exp.aggregateFunction match {
           case Sum(_) | Min(_) | Average(_) | Max(_) | Count(_) =>
@@ -540,15 +546,15 @@ abstract class BaseColumnarFileSourceScanExec(
                 (omniAggindex + aggIndexOffset)
             }
             omniAggTypes(omniAggindex) = sparkTypeToOmniType(aggExp.dataType)
-            omniAggFunctionTypes(omniAggindex) = toOmniAggFunType(exp)
+            omniAggFunctionTypes(omniAggindex) = toOmniAggFunType(exp, true)
             omniAggOutputTypes(omniAggindex) =
               sparkTypeToOmniType(exp.aggregateFunction.dataType)
             omniAggChannels(omniAggindex) =
               rewriteToOmniJsonExpressionLiteral(aggExp, attrAggExpsIdMap)
-          case _ => throw new RuntimeException(s"Unsupported aggregate expression: $exp")
+          case _ => throw new UnsupportedOperationException(s"Unsupported aggregate aggregateFunction: $exp")
         }
       } else {
-        throw new RuntimeException(s"Unsupported aggregate mode: $exp.mode")
+        throw new UnsupportedOperationException(s"Unsupported aggregate mode: $exp.mode")
       }
       omniAggindex += 1
     }
@@ -857,6 +863,8 @@ case class ColumnarMultipleOperatorExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp1.close()
         lookupOp1.close()
+        buildOpFactory1.close()
+        lookupOpFactory1.close()
       })
 
       val projectOperatorFactory2 = new OmniProjectOperatorFactory(proj2OmniExpressions, proj2OmniInputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
@@ -882,6 +890,8 @@ case class ColumnarMultipleOperatorExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp2.close()
         lookupOp2.close()
+        buildOpFactory2.close()
+        lookupOpFactory2.close()
       })
 
       val projectOperatorFactory3 = new OmniProjectOperatorFactory(proj3OmniExpressions, proj3OmniInputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
@@ -907,6 +917,8 @@ case class ColumnarMultipleOperatorExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp3.close()
         lookupOp3.close()
+        buildOpFactory3.close()
+        lookupOpFactory3.close()
       })
 
       val projectOperatorFactory4 = new OmniProjectOperatorFactory(proj4OmniExpressions, proj4OmniInputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
@@ -932,6 +944,8 @@ case class ColumnarMultipleOperatorExec(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp4.close()
         lookupOp4.close()
+        buildOpFactory4.close()
+        lookupOpFactory4.close()
       })
 
       val condOperatorFactory = new OmniFilterAndProjectOperatorFactory(
@@ -1184,6 +1198,8 @@ case class ColumnarMultipleOperatorExec1(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp1.close()
         lookupOp1.close()
+        buildOpFactory1.close()
+        lookupOpFactory1.close()
       })
 
       val projectOperatorFactory2 = new OmniProjectOperatorFactory(proj2OmniExpressions, proj2OmniInputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
@@ -1209,6 +1225,8 @@ case class ColumnarMultipleOperatorExec1(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp2.close()
         lookupOp2.close()
+        buildOpFactory2.close()
+        lookupOpFactory2.close()
       })
 
       val projectOperatorFactory3 = new OmniProjectOperatorFactory(proj3OmniExpressions, proj3OmniInputTypes, 1, new OperatorConfig(IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP))
@@ -1234,6 +1252,8 @@ case class ColumnarMultipleOperatorExec1(
       SparkMemoryUtils.addLeakSafeTaskCompletionListener[Unit]( _ => {
         buildOp3.close()
         lookupOp3.close()
+        buildOpFactory3.close()
+        lookupOpFactory3.close()
       })
 
       val condOperatorFactory = new OmniFilterAndProjectOperatorFactory(

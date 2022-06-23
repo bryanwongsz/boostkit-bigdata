@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2022-2022. Huawei Technologies Co., Ltd. All rights reserved.
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -32,6 +33,7 @@ object Constant {
   val OMNI_BOOLEAN_TYPE: String = DataTypeId.OMNI_BOOLEAN.ordinal().toString
   val OMNI_DATE_TYPE: String = DataTypeId.OMNI_DATE32.ordinal().toString
   val IS_ENABLE_JIT: Boolean = ColumnarPluginConfig.getSessionConf.enableJit
+  val IS_DECIMAL_CHECK: Boolean = ColumnarPluginConfig.getSessionConf.enableDecimalCheck
   val IS_SKIP_VERIFY_EXP: Boolean = true
   val OMNI_DECIMAL64_TYPE: String = DataTypeId.OMNI_DECIMAL64.ordinal().toString
   val OMNI_DECIMAL128_TYPE: String = DataTypeId.OMNI_DECIMAL128.ordinal().toString

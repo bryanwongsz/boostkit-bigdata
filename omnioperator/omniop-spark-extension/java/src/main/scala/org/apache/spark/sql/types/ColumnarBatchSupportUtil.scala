@@ -17,7 +17,7 @@
 
  package org.apache.spark.sql.types
 
- import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.FileSourceScanExec
  import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
  import org.apache.spark.sql.internal.SQLConf
 
@@ -26,7 +26,7 @@
          val isSupportFormat: Boolean = {
              plan.relation.fileFormat match {
                 case _: OrcFileFormat =>
-                    conf.orcVectorizedReaderEnabled && !conf.wholeStageEnabled
+                    conf.orcVectorizedReaderEnabled
                 case _ =>
                     false
              }

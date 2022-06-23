@@ -1,13 +1,27 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+ * Copyright (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #ifndef SPARK_THESTRAL_PLUGIN_BINARYLOCATION_H
 #define SPARK_THESTRAL_PLUGIN_BINARYLOCATION_H
 class VCLocation {
 public:
-    VCLocation(uint64_t vc_addr, uint32_t vc_len)
-            : vc_len(vc_len), vc_addr(vc_addr) {
+    VCLocation(uint64_t vc_addr, uint32_t vc_len, bool isnull)
+            : vc_len(vc_len), vc_addr(vc_addr), is_null(isnull) {
             }
     ~VCLocation() {
     }
@@ -19,9 +33,14 @@ public:
         return vc_addr;
     }
 
- public:
-     uint32_t vc_len;
-     uint64_t vc_addr;
+    bool get_is_null() {
+        return is_null;
+    }
+
+public:
+    uint32_t vc_len;
+    uint64_t vc_addr;
+    bool is_null;
 };
 
 class VCBatchInfo {

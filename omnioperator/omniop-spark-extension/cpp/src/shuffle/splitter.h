@@ -1,5 +1,20 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+/**
+ * Copyright (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ *  with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 #ifndef CPP_SPLITTER_H
@@ -31,7 +46,7 @@ using namespace omniruntime::mem;
 struct SplitRowInfo {
     uint32_t copyedRow = 0;
     uint32_t onceCopyRow = 0;
-    uint32_t remainCopyRow = 0;
+    uint64_t remainCopyRow = 0;
     vector<uint32_t> cacheBatchIndex; // 记录各定长列的溢写Batch下标
     vector<uint32_t> cacheBatchCopyedLen; // 记录各定长列的溢写Batch内部偏移
 };
@@ -74,7 +89,7 @@ class Splitter {
 
     std::vector<int32_t> partition_id_; // 记录当前vb每一行的pid
     std::vector<int32_t> partition_id_cnt_cur_; // 统计不同partition记录的行数(当前处理中的vb)
-    std::vector<int32_t> partition_id_cnt_cache_; // 统计不同partition记录的行数，cache住的
+    std::vector<uint64_t> partition_id_cnt_cache_; // 统计不同partition记录的行数，cache住的
     // column number
     uint32_t num_row_splited_; // cached row number
     uint64_t cached_vectorbatch_size_; // cache total vectorbatch size in bytes

@@ -1,6 +1,21 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2020-2021. All rights reserved.
+ * Copyright (C) 2020-2022. Huawei Technologies Co., Ltd. All rights reserved.
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.huawei.boostkit.spark.jni;
 
 import nova.hetu.omniruntime.type.DataType;
@@ -70,7 +85,14 @@ public class OrcColumnarBatchJniReader {
                 } else if (pl.getType() == PredicateLeaf.Type.DECIMAL) {
                     int decimalP = schema.findSubtype(pl.getColumnName()).getPrecision();
                     int decimalS = schema.findSubtype(pl.getColumnName()).getScale();
-                    jsonObject.put("literal", pl.getLiteral().toString() + " " + decimalP + " " + decimalS);
+                    String[] spiltValues = pl.getLiteral().toString().split("\\.");
+                    String strToAdd = "";
+                    if (spiltValues.length == 2) {
+                        strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace(' ', '0');
+                    } else {
+                        strToAdd = String.format("%1$" + decimalS + "s", "").replace(' ', '0');
+                    }
+                    jsonObject.put("literal", spiltValues[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
                 } else {
                     jsonObject.put("literal", pl.getLiteral().toString());
                 }
@@ -83,7 +105,14 @@ public class OrcColumnarBatchJniReader {
                     if (pl.getType() == PredicateLeaf.Type.DECIMAL) {
                         int decimalP =  schema.findSubtype(pl.getColumnName()).getPrecision();
                         int decimalS =  schema.findSubtype(pl.getColumnName()).getScale();
-                        lst.add(ob.toString() + " " + decimalP + " " + decimalS);
+                        String[] spiltValues = ob.toString().split("\\.");
+                        String strToAdd = "";
+                        if (spiltValues.length == 2) {
+                            strToAdd = String.format("%1$" + decimalS + "s", spiltValues[1]).replace(' ', '0');
+                        } else {
+                            strToAdd = String.format("%1$" + decimalS + "s", "").replace(' ', '0');
+                        }
+                        lst.add(spiltValues[0] + "." + strToAdd + " " + decimalP + " " + decimalS);
                     } else if (pl.getType() == PredicateLeaf.Type.DATE) {
                         lst.add(((int)Math.ceil(((Date)pl.getLiteral()).getTime()* 1.0/3600/24/1000)) + "");
                     } else {

@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
 import com.huawei.boostkit.spark.Constant.{IS_ENABLE_JIT, IS_SKIP_VERIFY_EXP}
-import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor.{getExprIdMap, rewriteToOmniJsonExpressionLiteral, sparkTypeToOmniType}
+import com.huawei.boostkit.spark.expression.OmniExpressionAdaptor.{checkOmniJsonWhiteList, getExprIdMap, rewriteToOmniJsonExpressionLiteral, sparkTypeToOmniType}
 import com.huawei.boostkit.spark.serialize.ColumnarBatchSerializer
 import com.huawei.boostkit.spark.util.OmniAdaptorUtil.{addAllAndGetIterator, genSortParam}
 import nova.hetu.omniruntime.`type`.DataType
@@ -92,12 +92,13 @@ case class ColumnarTakeOrderedAndProjectExec(
     genSortParam(child.output, sortOrder)
     val projectEqualChildOutput = projectList == child.output
     var omniInputTypes: Array[DataType] = null
-    var omniExpressions: Array[String] = null
+    var omniExpressions: Array[AnyRef] = null
     if (!projectEqualChildOutput) {
       omniInputTypes = child.output.map(
         exp => sparkTypeToOmniType(exp.dataType, exp.metadata)).toArray
       omniExpressions = projectList.map(
         exp => rewriteToOmniJsonExpressionLiteral(exp, getExprIdMap(child.output))).toArray
+      checkOmniJsonWhiteList("", omniExpressions)
     }
   }
 

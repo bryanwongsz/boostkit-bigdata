@@ -124,8 +124,9 @@ class ColumnarShuffleExchangeExec(
 
     outputPartitioning match {
       case HashPartitioning(expressions, numPartitions) =>
-        val genHashExpression = ColumnarShuffleExchangeExec.genHashExpr()
-        genHashExpression(expressions, numPartitions, ColumnarShuffleExchangeExec.defaultMm3HashSeed, child.output)
+        val genHashExpressionFunc = ColumnarShuffleExchangeExec.genHashExpr()
+        val hashJSonExpressions = genHashExpressionFunc(expressions, numPartitions, ColumnarShuffleExchangeExec.defaultMm3HashSeed, child.output)
+        checkOmniJsonWhiteList("", Array(hashJSonExpressions))
       case _ =>
     }
   }
@@ -173,11 +174,24 @@ object ColumnarShuffleExchangeExec extends Logging {
           // Internally, RangePartitioner runs a job on the RDD that samples keys to compute
           // partition bounds. To get accurate samples, we need to copy the mutable keys.
           iter.flatMap(batch => {
-            val rows = batch.rowIterator.asScala
+            val rows: Iterator[InternalRow] = batch.rowIterator.asScala
             val projection =
               UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
             val mutablePair = new MutablePair[InternalRow, Null]()
-            rows.map(row => mutablePair.update(projection(row).copy(), null))
+            new Iterator[MutablePair[InternalRow, Null]] {
+              var closed = false
+              override def hasNext: Boolean = {
+                val has: Boolean = rows.hasNext
+                if (!has && !closed) {
+                  batch.close()
+                  closed = true
+                }
+                has
+              }
+              override def next(): MutablePair[InternalRow, Null] = {
+                mutablePair.update(projection(rows.next()).copy(), null)
+              }
+            }
           })
         }
         // Construct ordering on extracted sort key.

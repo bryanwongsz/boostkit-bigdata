@@ -316,7 +316,7 @@ case class ColumnarPostOverrides() extends Rule[SparkPlan] {
   def replaceWithColumnarPlan(plan: SparkPlan): SparkPlan = plan match {
     case plan: RowToColumnarExec =>
       val child = replaceWithColumnarPlan(plan.child)
-      logInfo(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      logInfo(s"Columnar Processing for ${plan.getClass} is currently supported")
       RowToOmniColumnarExec(child)
     case ColumnarToRowExec(child: ColumnarBroadcastExchangeExec) =>
       replaceWithColumnarPlan(child)

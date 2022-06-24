@@ -38,7 +38,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
   // todo: CaseWhen,InSet
   test("expression rewrite") {
-    checkExpressionRewrite("$operator$ADD:1(#0 , #1)", Add(allAttribute(0), allAttribute(1)))
+    checkExpressionRewrite("$operator$ADD:1(#0,#1)", Add(allAttribute(0), allAttribute(1)))
     checkExpressionRewrite("$operator$ADD:1(#0 , 1:1)", Add(allAttribute(0), Literal(1)))
 
     checkExpressionRewrite("$operator$SUBTRACT:1(#0 , #1)",
@@ -118,7 +118,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"ADD\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
       Add(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"SUBTRACT\"," +

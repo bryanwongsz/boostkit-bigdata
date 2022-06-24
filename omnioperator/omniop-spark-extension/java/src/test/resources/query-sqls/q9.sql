@@ -28,10 +28,11 @@ from
     and store.s_number_employees between 200 and 295
     and ss_sold_date_sk between 2450819 and 2451904
   group by 
-  ss_ticket_number,
-  ss_customer_sk,
-  ss_addr_sk,
-  store.s_city) ms,
+    ss_ticket_number,
+    ss_customer_sk,
+    ss_addr_sk,
+    store.s_city
+  ) ms,
   customer 
 where 
   ss_customer_sk = c_customer_sk

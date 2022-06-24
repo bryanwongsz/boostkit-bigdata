@@ -237,7 +237,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
       "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":3}}",
       And(allAttribute(2), Literal(3)))
 
-    checkJsonExprRewrite("{\"exprType\":\"UNARY\",\"returnType\":4,\"operator\":\"not\"," +
+    checkJsonExprRewrite("{\"exprType\":\"UNARY\",\"returnType\":4, \"operator\":\"not\"," +
       "\"expr\":{\"exprType\":\"IS_NULL\",\"returnType\":4," +
       "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":4}]}}",
       IsNotNull(allAttribute(4)))

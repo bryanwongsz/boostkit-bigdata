@@ -247,7 +247,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
       Cast(allAttribute(1), LongType))
 
     checkJsonExprRewrite("{\"exprType\":\"FUNCTION\",\"returnType\":1,\"function_name\":\"abs\"," +
-      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}",
+      " \"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}",
       Abs(allAttribute(0)))
   }
 

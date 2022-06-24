@@ -21,7 +21,8 @@
 class VCLocation {
 public:
     VCLocation(uint64_t vc_addr, uint32_t vc_len, bool isnull)
-            : vc_len(vc_len), vc_addr(vc_addr), is_null(isnull) {
+            : vc_len(vc_len), vc_addr(vc_addr), is_null(isnull)
+            {
             }
     ~VCLocation() {
     }

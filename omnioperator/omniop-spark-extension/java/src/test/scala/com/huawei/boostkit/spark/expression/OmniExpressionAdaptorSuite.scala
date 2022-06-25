@@ -38,52 +38,52 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
   // todo: CaseWhen,InSet
   test("expression rewrite") {
-    checkExpressionRewrite("$operator$ADD:1(#0,#1)", Add(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$ADD:1(#0,1:1)", Add(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$ADD:1(#0 , #1)", Add(allAttribute(0), allAttribute(1)))
+    checkExpressionRewrite("$operator$ADD:1(#0 , 1:1)", Add(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$SUBTRACT:1(#0,#1)",
+    checkExpressionRewrite("$operator$SUBTRACT:1(#0 , #1)",
       Subtract(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$SUBTRACT:1(#0,1:1)", Subtract(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$SUBTRACT:1(#0 , 1:1)", Subtract(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$MULTIPLY:1(#0,#1)",
+    checkExpressionRewrite("$operator$MULTIPLY:1(#0 , #1)",
       Multiply(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$MULTIPLY:1(#0,1:1)", Multiply(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$MULTIPLY:1(#0 , 1:1)", Multiply(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$DIVIDE:1(#0,#1)", Divide(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$DIVIDE:1(#0,1:1)", Divide(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$DIVIDE:1(#0 , #1)", Divide(allAttribute(0), allAttribute(1)))
+    checkExpressionRewrite("$operator$DIVIDE:1(#0 , 1:1)", Divide(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$MODULUS:1(#0,#1)",
+    checkExpressionRewrite("$operator$MODULUS:1(#0 , #1)",
       Remainder(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$MODULUS:1(#0,1:1)", Remainder(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$MODULUS:1(#0 , 1:1)", Remainder(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$GREATER_THAN:4(#0,#1)",
+    checkExpressionRewrite("$operator$GREATER_THAN:4(#0 , #1)",
       GreaterThan(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$GREATER_THAN:4(#0,1:1)",
+    checkExpressionRewrite("$operator$GREATER_THAN:4(#0 , 1:1)",
       GreaterThan(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$GREATER_THAN_OR_EQUAL:4(#0,#1)",
+    checkExpressionRewrite("$operator$GREATER_THAN_OR_EQUAL:4(#0 , #1)",
       GreaterThanOrEqual(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$GREATER_THAN_OR_EQUAL:4(#0,1:1)",
+    checkExpressionRewrite("$operator$GREATER_THAN_OR_EQUAL:4(#0 , 1:1)",
       GreaterThanOrEqual(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$LESS_THAN:4(#0,#1)",
+    checkExpressionRewrite("$operator$LESS_THAN:4(#0 , #1)",
       LessThan(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$LESS_THAN:4(#0,1:1)",
+    checkExpressionRewrite("$operator$LESS_THAN:4(#0 , 1:1)",
       LessThan(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$LESS_THAN_OR_EQUAL:4(#0,#1)",
+    checkExpressionRewrite("$operator$LESS_THAN_OR_EQUAL:4(#0 , #1)",
       LessThanOrEqual(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$LESS_THAN_OR_EQUAL:4(#0,1:1)",
+    checkExpressionRewrite("$operator$LESS_THAN_OR_EQUAL:4(#0 , 1:1)",
       LessThanOrEqual(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("$operator$EQUAL:4(#0,#1)", EqualTo(allAttribute(0), allAttribute(1)))
-    checkExpressionRewrite("$operator$EQUAL:4(#0,1:1)", EqualTo(allAttribute(0), Literal(1)))
+    checkExpressionRewrite("$operator$EQUAL:4(#0 , #1)", EqualTo(allAttribute(0), allAttribute(1)))
+    checkExpressionRewrite("$operator$EQUAL:4(#0 , 1:1)", EqualTo(allAttribute(0), Literal(1)))
 
-    checkExpressionRewrite("OR:4(#2,#3)", Or(allAttribute(2), allAttribute(3)))
-    checkExpressionRewrite("OR:4(#2,3:1)", Or(allAttribute(2), Literal(3)))
+    checkExpressionRewrite("OR:4(#2 , #3)", Or(allAttribute(2), allAttribute(3)))
+    checkExpressionRewrite("OR:4(#2 , 3:1)", Or(allAttribute(2), Literal(3)))
 
-    checkExpressionRewrite("AND:4(#2,#3)", And(allAttribute(2), allAttribute(3)))
-    checkExpressionRewrite("AND:4(#2,3:1)", And(allAttribute(2), Literal(3)))
+    checkExpressionRewrite("AND:4(#2 , #3)", And(allAttribute(2), allAttribute(3)))
+    checkExpressionRewrite("AND:4(#2 , 3:1)", And(allAttribute(2), Literal(3)))
 
     checkExpressionRewrite("not:4(#3)", Not(allAttribute(3)))
 
@@ -107,7 +107,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
     checkExpressionRewrite("IN:4(#0,#0,#1)",
       In(allAttribute(0), Seq(allAttribute(0), allAttribute(1))))
 
-    //    checkExpressionRewrite("IN:4(#0, #0, #1)", InSet(allAttribute(0), Set(allAttribute(0), allAttribute(1))))
+    //    checkExpressionRewrite("IN:4(#0,#0,#1)", InSet(allAttribute(0), Set(allAttribute(0), allAttribute(1))))
   }
 
   test("json expression rewrite") {
@@ -118,7 +118,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"ADD\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       Add(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"SUBTRACT\"," +
@@ -128,7 +128,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"SUBTRACT\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       Subtract(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"MULTIPLY\"," +
@@ -138,7 +138,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"MULTIPLY\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       Multiply(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"DIVIDE\"," +
@@ -148,7 +148,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"DIVIDE\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       Divide(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"MODULUS\"," +
@@ -158,7 +158,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":1,\"operator\":\"MODULUS\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       Remainder(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
@@ -170,7 +170,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
       "\"operator\":\"GREATER_THAN\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       GreaterThan(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
@@ -182,7 +182,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
       "\"operator\":\"GREATER_THAN_OR_EQUAL\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       GreaterThanOrEqual(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"LESS_THAN\"," +
@@ -192,7 +192,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"LESS_THAN\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       LessThan(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
@@ -204,7 +204,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4," +
       "\"operator\":\"LESS_THAN_OR_EQUAL\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       LessThanOrEqual(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"EQUAL\"," +
@@ -214,7 +214,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"EQUAL\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":1}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":1}}",
       EqualTo(allAttribute(0), Literal(1)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"OR\"," +
@@ -224,7 +224,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"OR\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":4,\"colVal\":2}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":3}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":3}}",
       Or(allAttribute(2), Literal(3)))
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"AND\"," +
@@ -234,10 +234,10 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
 
     checkJsonExprRewrite("{\"exprType\":\"BINARY\",\"returnType\":4,\"operator\":\"AND\"," +
       "\"left\":{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":4,\"colVal\":2}," +
-      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1, \"isNull\":false, \"value\":3}}",
+      "\"right\":{\"exprType\":\"LITERAL\",\"dataType\":1,\"isNull\":false,\"value\":3}}",
       And(allAttribute(2), Literal(3)))
 
-    checkJsonExprRewrite("{\"exprType\":\"UNARY\",\"returnType\":4, \"operator\":\"not\"," +
+    checkJsonExprRewrite("{\"exprType\":\"UNARY\",\"returnType\":4,\"operator\":\"not\"," +
       "\"expr\":{\"exprType\":\"IS_NULL\",\"returnType\":4," +
       "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":4}]}}",
       IsNotNull(allAttribute(4)))
@@ -247,7 +247,7 @@ class OmniExpressionAdaptorSuite extends SparkFunSuite {
       Cast(allAttribute(1), LongType))
 
     checkJsonExprRewrite("{\"exprType\":\"FUNCTION\",\"returnType\":1,\"function_name\":\"abs\"," +
-      " \"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}",
+      "\"arguments\":[{\"exprType\":\"FIELD_REFERENCE\",\"dataType\":1,\"colVal\":0}]}",
       Abs(allAttribute(0)))
   }
 
